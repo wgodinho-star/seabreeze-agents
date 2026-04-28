@@ -37,6 +37,13 @@ def run():
     except Exception as e:
         logger.error(f"❌ Review Agent failed: {e}")
 
+    # ── Always run: Scheduling Agent (every tick) ──────────────
+    try:
+        from agents.scheduling_agent import run as scheduling_run
+        scheduling_run()
+    except Exception as e:
+        logger.error(f"❌ Scheduling Agent failed: {e}")
+
     # ── Monday 8am: Weekly Report ─────────────────────────
     if weekday == 0 and 8 <= hour < 9:
         logger.info("📊 CEO Agent: Triggering weekly report...")
