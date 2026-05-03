@@ -30,6 +30,13 @@ def run():
     except Exception as e:
         logger.error(f"❌ Lead Agent failed: {e}")
 
+    # ── Outreach Agent (weekday mornings) ────────────────────
+    try:
+        from agents.outreach_agent import run as outreach_run
+        outreach_run()
+    except Exception as e:
+        logger.error(f"❌ Outreach Agent failed: {e}")
+
     # ── Always run: Review Agent (every tick) ─────────────
     try:
         from agents.review_agent import run as review_run
