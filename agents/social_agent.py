@@ -150,7 +150,8 @@ def schedule_post(caption: str, image_url: str, scheduled_time: str) -> bool:
                 "summary": caption,
                 "media": [{"url": image_url, "type": "image"}],
                 "scheduleDate": scheduled_time,
-                "status": "scheduled"
+                "status": "scheduled",
+                "platforms": ["facebook", "instagram", "linkedin"]
             }
         )
         return r.status_code in [200, 201]
