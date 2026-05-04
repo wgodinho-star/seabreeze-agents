@@ -30,6 +30,13 @@ def run():
     except Exception as e:
         logger.error(f"❌ Lead Agent failed: {e}")
 
+    # ── Social Agent (Monday mornings) ──────────────────────
+    try:
+        from agents.social_agent import run as social_run
+        social_run()
+    except Exception as e:
+        logger.error(f"❌ Social Agent failed: {e}")
+
     # ── Follow-up Agent (weekday mornings) ───────────────────
     try:
         from agents.followup_agent import run as followup_run
