@@ -9,6 +9,8 @@ from tools import ghl, claude_ai
 logger = logging.getLogger(__name__)
 
 FRANCISCO_EMAIL = "accounts@seabreezemaintenance.com.au"
+WANDER_EMAIL = "wgodinho@gmail.com"
+WANDER_CONTACT_ID = "g1Hp5UCnMLVganCyNj93"  # Wander in GHL
 FRANCISCO_CONTACT_ID = "lcR0DMJ4JufVyrMAbuLL"
 
 
