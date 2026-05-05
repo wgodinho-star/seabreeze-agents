@@ -15,7 +15,8 @@ import pytz
 from tools import claude_ai
 
 logger = logging.getLogger(__name__)
-PERTH_TZ = pytz.timezone("Australia/Perth")
+PERTH_TZ = pytz.timezone("Australia/Perth")   # Sea Breeze / Francisco
+SYDNEY_TZ = pytz.timezone("Australia/Sydney")  # Enviromentor / Wander
 
 KEY = os.getenv("GHL_SEABREEZE_KEY")
 LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
@@ -28,6 +29,7 @@ HEADERS = {
 WANDER_CONTACT_ID = "g1Hp5UCnMLVganCyNj93"
 FRANCISCO_CONTACT_ID = os.getenv("GHL_FRANCISCO_CONTACT_ID")
 PERTH_NOW = lambda: datetime.now(PERTH_TZ)
+SYDNEY_NOW = lambda: datetime.now(SYDNEY_TZ)
 
 
 def get_pipeline_stats() -> dict:
@@ -137,7 +139,8 @@ def send_to_wander(message: str):
 
 def morning_briefing():
     """7am Perth — What will happen today."""
-    now = PERTH_NOW()
+    now = SYDNEY_NOW()  # Wander timezone
+    perth_now = PERTH_NOW()  # For Perth-specific checks
     day = now.strftime("%A")
     date = now.strftime("%d %B %Y")
     is_weekday = now.weekday() < 5
@@ -210,7 +213,7 @@ You'll get your evening update at 5pm with what actually happened.
 
 def evening_briefing():
     """5pm Perth — What happened today."""
-    now = PERTH_NOW()
+    now = SYDNEY_NOW()  # Wander timezone
     day = now.strftime("%A")
     date = now.strftime("%d %B %Y")
 
@@ -258,7 +261,7 @@ Here's what your AI team did today:
 
 def run():
     """Run at 7am (morning) or 5pm (evening) Perth time."""
-    now = PERTH_NOW()
+    now = SYDNEY_NOW()  # Wander is in Sydney
     hour = now.hour
 
     if hour == 7:
