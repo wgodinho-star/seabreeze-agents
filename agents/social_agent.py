@@ -48,6 +48,10 @@ HASHTAG_MAP = {
 
 BASE_HASHTAGS = "#SeaBreezeMaintenance #PerthMaintenance #SouthWestWA"
 
+# LinkedIn Company Page
+LINKEDIN_COMPANY_ID = "116744068"
+LINKEDIN_PAGE_URL = "https://www.linkedin.com/company/116744068"
+
 
 def get_hashtags(filename: str) -> str:
     """Pick relevant hashtags based on filename keywords."""
