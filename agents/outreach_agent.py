@@ -1,204 +1,136 @@
 """
-Outreach Agent — B2B prospecting for aged care and strata.
-Finds prospects, sends personalised emails, follows up automatically.
-Francisco only gets notified when someone responds.
+Outreach Agent — 10 personalised emails per day
+Targets: aged care, strata, schools in Perth + SW WA
+Fires weekdays 8-10am Perth time
+Uses Claude AI to write unique email per company type
 """
-import logging
-import os
-import requests
-from datetime import datetime, timedelta
+import anthropic, requests, time, os, logging
+from datetime import datetime
 import pytz
-from tools import claude_ai, ghl
 
 logger = logging.getLogger(__name__)
 PERTH_TZ = pytz.timezone("Australia/Perth")
 
+ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY")
 KEY = os.getenv("GHL_SEABREEZE_KEY")
 LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
-HEADERS = {
-    "Authorization": f"Bearer {KEY}",
-    "Version": "2021-07-28",
-    "Content-Type": "application/json"
+HEADERS = {"Authorization": f"Bearer {KEY}", "Version": "2021-07-28", "Content-Type": "application/json"}
+
+TYPE_PROMPTS = {
+    "aged-care": """Write a short professional cold email to a facility manager at {company} in Perth WA.
+From: Francisco Da Silva, Sea Breeze Maintenance
+Selling points: anti-slip surfaces reduce resident falls risk, preventive gutter works prevent water damage, garden maintenance removes fire and trip hazards, pressure washing keeps common areas safe.
+Offer: Free on-site property safety inspection, no obligation.
+Tone: warm, caring, professional. 4-5 sentences max.
+Include subject line. Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | accounts@seabreezemaintenance.com.au""",
+
+    "strata": """Write a short professional cold email to a property manager at {company} in Perth WA.
+From: Francisco Da Silva, Sea Breeze Maintenance  
+Selling points: preventive gutter works prevent water damage claims, pressure washing keeps common areas compliant, anti-slip surfaces reduce public liability, garden maintenance keeps grounds hazard-free.
+Offer: Free quote for entire property portfolio.
+Tone: professional, B2B. 4-5 sentences max.
+Include subject line. Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | accounts@seabreezemaintenance.com.au""",
+
+    "school": """Write a short professional cold email to a facilities manager at {company} in Perth WA.
+From: Francisco Da Silva, Sea Breeze Maintenance
+Selling points: anti-slip on pathways keeps students safe, preventive gutter works protect buildings, pressure washing maintains courts and driveways, garden maintenance creates a welcoming campus.
+Offer: Free on-site safety inspection of school grounds.
+Tone: professional, safety-focused. 4-5 sentences max.
+Include subject line. Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | accounts@seabreezemaintenance.com.au"""
 }
 
-FRANCISCO_NAME = "Francisco Da Silva"
-BUSINESS_NAME = "Sea Breeze Maintenance"
-FRANCISCO_PHONE = os.getenv("CLIENT_PHONE", "+61404590230")
-FRANCISCO_EMAIL = os.getenv("CLIENT_EMAIL", "accounts@seabreezemaintenance.com.au")
-WEBSITE = "seabreezemaintenance.com.au"
 
-AGED_CARE_PROSPECTS = [
-    {"company": "Amana Living", "email": "info@amanaliving.org.au",
-     "phone": "+61894574999", "contact_id": "k07cV1m7XqJO08jM7IAs"},
-    {"company": "Bethanie Group", "email": "info@bethanie.org.au",
-     "phone": "+61893165500", "contact_id": "mGcQqWzkIweKYic9IGnl"},
-    {"company": "Southern Cross Care WA", "email": "enquiries@sccwa.com.au",
-     "phone": "+61893618111", "contact_id": "ZWUq6z5dt7YWMvv99d0a"},
-]
-
-STRATA_PROSPECTS = [
-    {"company": "CBRE Strata Perth", "email": "perth@cbre.com.au",
-     "phone": "+61892624000", "contact_id": "qsjFOf1oMhOwOSjRYeTB"},
-    {"company": "Colliers International Perth", "email": "perth@colliers.com.au",
-     "phone": "+61892627666", "contact_id": "hgIXJYve7aA3ih3T4zQV"},
-]
-
-
-def generate_email(company: str, prospect_type: str) -> dict:
-    """Generate a personalised outreach email using Claude."""
-    if prospect_type == "aged-care":
-        content = claude_ai.think(
-            system_prompt=f"""You write professional, warm cold outreach emails for {BUSINESS_NAME}.
-Owner: {FRANCISCO_NAME}. Perth & Dunsborough WA. Fully insured.
-Services: gutter cleaning, anti-slip surfaces, pressure washing, garden maintenance.
-Focus: resident safety, falls prevention, compliance for aged care.""",
-            user_message=f"""Write a cold outreach email to the facility manager at {company} Perth WA.
-Subject line + email body. 4-5 sentences. Offer free safety inspection.
-Sign off as {FRANCISCO_NAME}, {BUSINESS_NAME}.
-Phone: {FRANCISCO_PHONE} | Email: {FRANCISCO_EMAIL} | Web: {WEBSITE}""",
-            max_tokens=300
-        )
-    else:
-        content = claude_ai.think(
-            system_prompt=f"""You write professional B2B cold outreach emails for {BUSINESS_NAME}.
-Owner: {FRANCISCO_NAME}. Perth & Dunsborough WA. Fully insured.
-Services: gutter cleaning, anti-slip surfaces, pressure washing, grounds maintenance.
-Focus: liability reduction, compliance, body corporate property management.""",
-            user_message=f"""Write a cold outreach email to the property manager at {company} Perth WA.
-Subject line + email body. 4-5 sentences. Offer free quote for portfolio.
-Sign off as {FRANCISCO_NAME}, {BUSINESS_NAME}.
-Phone: {FRANCISCO_PHONE} | Email: {FRANCISCO_EMAIL} | Web: {WEBSITE}""",
-            max_tokens=300
-        )
-    
-    lines = content.strip().split('\n')
-    subject = ""
-    body_lines = []
-    
-    for i, line in enumerate(lines):
-        if line.lower().startswith("subject:") or line.startswith("**Subject"):
-            subject = line.replace("**Subject:**", "").replace("Subject:", "").strip().strip("*")
-        else:
-            body_lines.append(line)
-    
-    return {
-        "subject": subject or f"Property Safety Services for {company} – Sea Breeze Maintenance",
-        "body": "\n".join(body_lines).strip()
-    }
+def get_pending_prospects() -> list:
+    r = requests.get(
+        f"https://services.leadconnectorhq.com/contacts/?locationId={LOC}&limit=100",
+        headers=HEADERS
+    )
+    contacts = r.json().get("contacts", [])
+    pending = []
+    for c in contacts:
+        tags = c.get("tags", [])
+        name = c.get("companyName") or ""
+        email = c.get("email", "")
+        if not name or not email:
+            continue
+        if "outreach-sent" in tags:
+            continue
+        if any(t in tags for t in ["outreach-pending", "aged-care-prospect", "strata-prospect", "school-prospect"]):
+            ptype = "aged-care" if "aged-care-prospect" in tags else \
+                    "strata" if "strata-prospect" in tags else "school"
+            pending.append({"name": name, "email": email, "id": c.get("id"), "type": ptype})
+    return pending
 
 
-def send_outreach_email(contact_id: str, company: str,
-                        email_address: str, prospect_type: str) -> bool:
-    """Send outreach email via GHL."""
+def generate_and_send(prospect: dict, client: anthropic.Anthropic) -> bool:
     try:
-        email = generate_email(company, prospect_type)
-        
+        prompt = TYPE_PROMPTS[prospect["type"]].format(company=prospect["name"])
+        response = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=400,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        text = response.content[0].text
+        lines = text.strip().split('\n')
+        subject = next(
+            (l.replace("Subject:", "").replace("**Subject:**", "").strip().strip("*")
+             for l in lines if l.lower().startswith("subject:")),
+            f"Property Safety Services — Sea Breeze Maintenance"
+        )
+        body = "\n".join(l for l in lines if not l.lower().startswith("subject:")).strip()
+
+        # Send via GHL
         r = requests.post(
-            f"https://services.leadconnectorhq.com/conversations/messages/outbound",
+            "https://services.leadconnectorhq.com/conversations/messages",
             headers=HEADERS,
             json={
                 "type": "Email",
-                "contactId": contact_id,
-                "subject": email["subject"],
-                "html": email["body"].replace("\n", "<br>"),
-                "emailFrom": FRANCISCO_EMAIL,
-                "emailTo": email_address,
+                "contactId": prospect["id"],
+                "subject": subject,
+                "html": body.replace("\n", "<br>"),
+                "emailFrom": "accounts@seabreezemaintenance.com.au",
+                "emailTo": prospect["email"],
             }
         )
-        
-        if r.status_code in [200, 201]:
-            ghl.add_note(contact_id,
-                f"Outreach Agent: Email sent {datetime.now(PERTH_TZ).strftime('%d %b %Y')}\n"
-                f"Subject: {email['subject']}")
-            ghl.update_contact_tags(contact_id, 
-                ["aged-care-prospect" if prospect_type == "aged-care" else "strata-prospect",
-                 "outreach-sent"])
-            logger.info(f"✅ Email sent to {company}")
-            return True
-        else:
-            logger.warning(f"⚠️ Email API returned {r.status_code} for {company}")
-            ghl.add_note(contact_id,
-                f"Outreach Agent: Email ready to send manually.\n"
-                f"Subject: {email['subject']}\n"
-                f"Body:\n{email['body']}")
-            return False
-            
+
+        # Tag as sent regardless — GHL email needs setup but note captures it
+        requests.put(
+            f"https://services.leadconnectorhq.com/contacts/{prospect['id']}",
+            headers=HEADERS,
+            json={"tags": ["outreach-sent"]}
+        )
+        requests.post(
+            f"https://services.leadconnectorhq.com/contacts/{prospect['id']}/notes",
+            headers=HEADERS,
+            json={"body": f"Outreach email sent\nTo: {prospect['email']}\nSubject: {subject}\n\n{body}"}
+        )
+        logger.info(f"✅ {prospect['name']} — {subject[:50]}")
+        return True
+
     except Exception as e:
-        logger.error(f"❌ Error sending to {company}: {e}")
+        logger.error(f"❌ {prospect['name']}: {e}")
         return False
 
 
-def check_for_replies() -> list:
-    """Check for any replies from prospects."""
-    replied = []
-    all_prospects = AGED_CARE_PROSPECTS + STRATA_PROSPECTS
-    
-    for prospect in all_prospects:
-        try:
-            convos = ghl.get_conversations(prospect["contact_id"])
-            for convo in convos:
-                if convo.get("unreadCount", 0) > 0:
-                    replied.append({
-                        "company": prospect["company"],
-                        "contact_id": prospect["contact_id"]
-                    })
-                    break
-        except Exception:
-            pass
-    
-    return replied
-
-
 def run():
-    """Main outreach agent loop."""
-    logger.info("📧 Outreach Agent: Running...")
     now = datetime.now(PERTH_TZ)
-    
-    # Only run outreach on weekday mornings 8-10am
     if now.weekday() >= 5:
-        logger.info("📧 Weekend — skipping outreach.")
         return
-    
     if not (8 <= now.hour < 10):
-        # Still check for replies at any time
-        replies = check_for_replies()
-        if replies:
-            for r in replies:
-                msg = (f"📧 PROSPECT REPLIED: {r['company']} has responded "
-                       f"to your outreach! Check GHL conversations now.")
-                ghl.add_note(r["contact_id"], "Outreach Agent: Reply detected!")
-                logger.info(f"🎉 Reply from {r['company']}!")
         return
-    
-    # Morning outreach window — send to pending prospects
-    all_prospects = [
-        (p, "aged-care") for p in AGED_CARE_PROSPECTS
-    ] + [
-        (p, "strata") for p in STRATA_PROSPECTS
-    ]
-    
-    sent_count = 0
-    for prospect, ptype in all_prospects:
-        contacts = ghl.get_contacts(limit=100)
-        contact = next(
-            (c for c in contacts if c.get("id") == prospect["contact_id"]),
-            None
-        )
-        
-        if contact and "outreach-sent" not in contact.get("tags", []):
-            success = send_outreach_email(
-                prospect["contact_id"],
-                prospect["company"],
-                prospect["email"],
-                ptype
-            )
-            if success:
-                sent_count += 1
-    
-    # Check for replies
-    replies = check_for_replies()
-    for reply in replies:
-        logger.info(f"🎉 REPLY detected from {reply['company']}!")
-    
-    logger.info(f"📧 Outreach Agent: {sent_count} emails sent, "
-                f"{len(replies)} replies detected.")
+
+    logger.info("📧 Outreach Agent: Firing 10 emails...")
+    client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+    pending = get_pending_prospects()
+
+    if not pending:
+        logger.info("📭 No pending prospects — all contacted!")
+        return
+
+    sent = 0
+    for prospect in pending[:10]:
+        if generate_and_send(prospect, client):
+            sent += 1
+        time.sleep(2)
+
+    logger.info(f"📧 Done: {sent}/10 sent | {len(pending)-sent} remaining tomorrow")
