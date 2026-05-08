@@ -65,6 +65,13 @@ def run():
     except Exception as e:
         logger.error(f"❌ Review Agent failed: {e}")
 
+    # ── Health Agent (every hour) ────────────────────────────
+    try:
+        from agents.health_agent import run as health_run
+        health_run()
+    except Exception as e:
+        logger.error(f"❌ Health Agent failed: {e}")
+
     # ── Always run: Scheduling Agent (every tick) ──────────────
     try:
         from agents.scheduling_agent import run as scheduling_run
