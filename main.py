@@ -1,44 +1,30 @@
 """
-Seabreeze AI Agent Stack — Main Entry Point
-Runs on Railway.app | Impeller Trust × Sea Breeze Maintenance
+Enviromentor Agent Stack — PAUSED
+Reason: Email sending not configured, domain not connected
+Resume when: GHL email services configured + domain connected
 """
-import os
 import logging
-import time
-from dotenv import load_dotenv
-
-# Load environment
-load_dotenv()
-
-# Logging setup
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-INTERVAL_MINUTES = int(os.getenv("LEAD_CHECK_INTERVAL_MINUTES", 5))
+logger.info("⏸️  Agent stack paused — awaiting email + domain setup")
+logger.info("   Resume by updating AGENTS_PAUSED=false in Railway env vars")
 
+import os
+import time
 
-def main():
-    logger.info("🚀 Seabreeze AI Agent Stack starting...")
-    logger.info(f"📍 Client: {os.getenv('CLIENT_NAME')}")
-    logger.info(f"📍 Location ID: {os.getenv('GHL_SEABREEZE_LOCATION_ID')}")
-    logger.info(f"⏱️  Check interval: every {INTERVAL_MINUTES} minutes")
-    logger.info("─" * 50)
+PAUSED = os.getenv("AGENTS_PAUSED", "true").lower() == "true"
 
-    from agents.ceo_agent import run as ceo_run
-
+if PAUSED:
+    logger.info("⏸️  Agents paused. Nothing will run until AGENTS_PAUSED=false")
     while True:
-        try:
-            ceo_run()
-        except Exception as e:
-            logger.error(f"❌ Fatal error in CEO Agent: {e}")
-
-        logger.info(f"😴 Sleeping {INTERVAL_MINUTES} minutes...\n")
-        time.sleep(INTERVAL_MINUTES * 60)
-
-
-if __name__ == "__main__":
-    main()
+        time.sleep(3600)
+        logger.info("⏸️  Still paused...")
+else:
+    # Normal operation
+    from agents.ceo_agent import run
+    import schedule
+    schedule.every(5).minutes.do(run)
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
