@@ -1,30 +1,29 @@
 """
-Enviromentor Agent Stack — PAUSED
-Reason: Email sending not configured, domain not connected
-Resume when: GHL email services configured + domain connected
+Enviromentor Agent Stack — ACTIVE
+Sea Breeze Maintenance — Francisco Da Silva
 """
 import logging
-logging.basicConfig(level=logging.INFO)
+import schedule
+import time
+import os
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(name)s %(levelname)s %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-logger.info("⏸️  Agent stack paused — awaiting email + domain setup")
-logger.info("   Resume by updating AGENTS_PAUSED=false in Railway env vars")
+from agents.ceo_agent import run
 
-import os
-import time
+# Run immediately on startup
+logger.info("🚀 Enviromentor Agent Stack starting...")
+run()
 
-PAUSED = os.getenv("AGENTS_PAUSED", "true").lower() == "true"
+# Schedule every 5 minutes
+schedule.every(5).minutes.do(run)
 
-if PAUSED:
-    logger.info("⏸️  Agents paused. Nothing will run until AGENTS_PAUSED=false")
-    while True:
-        time.sleep(3600)
-        logger.info("⏸️  Still paused...")
-else:
-    # Normal operation
-    from agents.ceo_agent import run
-    import schedule
-    schedule.every(5).minutes.do(run)
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
+logger.info("✅ Agents running — checking every 5 minutes")
+
+while True:
+    schedule.run_pending()
+    time.sleep(60)
