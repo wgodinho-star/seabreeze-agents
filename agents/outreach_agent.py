@@ -22,21 +22,33 @@ From: Francisco Da Silva, Sea Breeze Maintenance
 Selling points: anti-slip surfaces reduce resident falls risk, preventive gutter works prevent water damage, garden maintenance removes fire and trip hazards, pressure washing keeps common areas safe.
 Offer: Free on-site property safety inspection, no obligation.
 Tone: warm, caring, professional. 4-5 sentences max.
-Include subject line. Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | accounts@seabreezemaintenance.com.au""",
+Include subject line. Sign off:
+Zoe | Sea Breeze Maintenance
+📞 0480 891 085
+✉️ hello@seabreezemaintenance.com.au
+🌐 seabreezemaintenance.com.au""",
 
     "strata": """Write a short professional cold email to a property manager at {company} in Perth WA.
 From: Francisco Da Silva, Sea Breeze Maintenance  
 Selling points: preventive gutter works prevent water damage claims, pressure washing keeps common areas compliant, anti-slip surfaces reduce public liability, garden maintenance keeps grounds hazard-free.
 Offer: Free quote for entire property portfolio.
 Tone: professional, B2B. 4-5 sentences max.
-Include subject line. Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | accounts@seabreezemaintenance.com.au""",
+Include subject line. Sign off:
+Zoe | Sea Breeze Maintenance
+📞 0480 891 085
+✉️ hello@seabreezemaintenance.com.au
+🌐 seabreezemaintenance.com.au""",
 
     "school": """Write a short professional cold email to a facilities manager at {company} in Perth WA.
 From: Francisco Da Silva, Sea Breeze Maintenance
 Selling points: anti-slip on pathways keeps students safe, preventive gutter works protect buildings, pressure washing maintains courts and driveways, garden maintenance creates a welcoming campus.
 Offer: Free on-site safety inspection of school grounds.
 Tone: professional, safety-focused. 4-5 sentences max.
-Include subject line. Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | accounts@seabreezemaintenance.com.au"""
+Include subject line. Sign off:
+Zoe | Sea Breeze Maintenance
+📞 0480 891 085
+✉️ hello@seabreezemaintenance.com.au
+🌐 seabreezemaintenance.com.au"""
 }
 
 
@@ -88,7 +100,7 @@ def generate_and_send(prospect: dict, client: anthropic.Anthropic) -> bool:
                 "contactId": prospect["id"],
                 "subject": subject,
                 "html": body.replace("\n", "<br>"),
-                "emailFrom": "accounts@seabreezemaintenance.com.au",
+                "emailFrom": "hello@seabreezemaintenance.com.au",
                 "emailTo": prospect["email"],
             }
         )
