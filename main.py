@@ -1,5 +1,5 @@
 """
-Enviromentor Agent Stack — ACTIVE
+Stackd AI Agent Stack — ACTIVE
 Sea Breeze Maintenance — Francisco Da Silva
 """
 import logging
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 from agents.ceo_agent import run
 
 # Run immediately on startup
-logger.info("🚀 Enviromentor Agent Stack starting...")
+logger.info("🚀 Stackd AI Agent Stack starting...")
 run()
 
 # Schedule every 5 minutes

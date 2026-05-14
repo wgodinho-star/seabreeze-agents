@@ -4,7 +4,7 @@ Briefing Agent — Daily WhatsApp/SMS briefing for Wander.
 Morning (7am Perth): What the agents will do today
 Evening (5pm Perth): What was done, what worked, what needs attention
 
-This is Wander's daily connection to the Enviromentor system.
+This is Wander's daily connection to the Stackd AI system.
 Think of it as the CEO's daily standup report.
 """
 import logging
@@ -16,7 +16,7 @@ from tools import claude_ai
 
 logger = logging.getLogger(__name__)
 PERTH_TZ = pytz.timezone("Australia/Perth")   # Sea Breeze / Francisco
-SYDNEY_TZ = pytz.timezone("Australia/Sydney")  # Enviromentor / Wander
+SYDNEY_TZ = pytz.timezone("Australia/Sydney")  # Stackd AI / Wander
 
 KEY = os.getenv("GHL_SEABREEZE_KEY")
 LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
@@ -126,7 +126,7 @@ def send_to_wander(message: str):
             json={
                 "type": "Email",
                 "contactId": WANDER_CONTACT_ID,
-                "subject": f"Enviromentor Daily Briefing — {PERTH_NOW().strftime('%a %d %b')}",
+                "subject": f"Stackd AI Daily Briefing — {PERTH_NOW().strftime('%a %d %b')}",
                 "html": message.replace("\n", "<br>"),
                 "emailFrom": "enviromentor.australia@gmail.com",
                 "emailTo": "wgodinho@gmail.com",
@@ -189,7 +189,7 @@ def morning_briefing():
 
     tasks_text = "\n".join(today_tasks)
 
-    message = f"""🌿 ENVIROMENTOR MORNING BRIEFING
+    message = f"""🌿 STACKD AI MORNING BRIEFING
 {day} {date} | 7:00am Perth
 
 Good morning Wander! Here's what your AI team is doing today:
@@ -205,7 +205,7 @@ Good morning Wander! Here's what your AI team is doing today:
 {"🎉 REPLIES RECEIVED: " + ", ".join(prospects['replied']) if prospects['replied'] else "⏳ Waiting for first reply..."}
 
 You'll get your evening update at 5pm with what actually happened.
-— Enviromentor AI System 🌿"""
+— Stackd AI AI System 🌿"""
 
     send_to_wander(message)
     logger.info("☀️ Morning briefing sent")
@@ -228,7 +228,7 @@ def evening_briefing():
         and "strata-prospect" not in c.get("tags", [])
     ]
 
-    message = f"""🌙 ENVIROMENTOR EVENING BRIEFING
+    message = f"""🌙 STACKD AI EVENING BRIEFING
 {day} {date} | 5:00pm Perth
 
 Here's what your AI team did today:
@@ -253,7 +253,7 @@ Here's what your AI team did today:
 🎯 TOMORROW:
 {"Outreach + Follow-up agents fire at 8am Perth" if now.weekday() < 4 else "Weekend — core agents monitoring only"}
 
-— Enviromentor AI System 🌿"""
+— Stackd AI AI System 🌿"""
 
     send_to_wander(message)
     logger.info("🌙 Evening briefing sent")

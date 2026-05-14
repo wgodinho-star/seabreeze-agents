@@ -61,7 +61,7 @@ Add a soft reason why NOW is a good time (e.g. approaching winter = gutter clean
 wet season = slip hazards increase).
 Keep it to 3-4 sentences. No hard sell. 
 Subject line included.
-Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | Powered by Enviromentor AI"""
+Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | Powered by Stackd AI AI"""
 
     elif followup_num == 3:
         prompt = f"""Write a value-add follow-up email (follow-up #3, sent 10 days after initial outreach) 
@@ -75,7 +75,7 @@ Make it genuinely useful, not salesy.
 Offer the free inspection again casually at the end.
 Keep it to 4-5 sentences.
 Subject line included.
-Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | Powered by Enviromentor AI"""
+Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | Powered by Stackd AI AI"""
 
     else:  # followup_num == 4, day 21
         prompt = f"""Write a final follow-up email (follow-up #4, sent 21 days after initial outreach) 
@@ -88,7 +88,7 @@ Something like "I'll leave the ball in your court — if the timing is ever righ
 we'd love to help keep your property safe."
 Warm and human. 3 sentences max.
 Subject line included.
-Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | Powered by Enviromentor AI"""
+Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | Powered by Stackd AI AI"""
 
     content = claude_ai.think(
         system_prompt="You write warm, professional follow-up emails for a property maintenance business in Perth WA.",
