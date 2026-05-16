@@ -168,3 +168,39 @@ def get_appointments(start_time: str, end_time: str) -> list:
         }
     )
     return r.json().get("events", [])
+
+
+def create_appointment(contact_id: str, calendar_id: str, start_time: str,
+                        end_time: str, title: str = None) -> dict:
+    """Book a calendar appointment for a contact."""
+    payload = {
+        "locationId": LOCATION_ID,
+        "calendarId": calendar_id,
+        "contactId": contact_id,
+        "startTime": start_time,
+        "endTime": end_time,
+        "status": "booked"
+    }
+    if title:
+        payload["title"] = title
+    resp = requests.post(
+        f"{BASE_URL}/calendars/events/appointments",
+        headers=HEADERS,
+        json=payload
+    )
+    return resp.json()
+
+
+def create_or_get_contact(first_name: str, last_name: str, phone: str,
+                           email: str = None, suburb: str = None,
+                           service_type: str = None) -> dict:
+    """Find existing contact by phone or create new one."""
+    search = requests.get(
+        f"{BASE_URL}/contacts/search/duplicate",
+        headers=HEADERS,
+        params={"locationId": LOCATION_ID, "phone": phone}
+    )
+    existing = search.json().get("contact")
+    if existing:
+        return existing
+    return create_contact(first_name, last_name, phone, email, suburb, service_type, source="zoe-call")
