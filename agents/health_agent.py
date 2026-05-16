@@ -36,7 +36,7 @@ HEADERS = {"Authorization": f"Bearer {KEY}", "Version": "2021-07-28", "Content-T
 TWILIO_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
-WANDER_PHONE = "+61404590230"  # Update to Wander's number
+WANDER_PHONE = os.getenv("WANDER_PHONE", "+61404590230")
 FRANCISCO_PHONE = os.getenv("CLIENT_PHONE", "+61404590230")
 WANDER_CONTACT_ID = "g1Hp5UCnMLVganCyNj93"
 
@@ -50,7 +50,7 @@ def send_alert(message: str):
         data = urllib.parse.urlencode({
             "Body": f"🚨 SYSTEM ALERT\n{message}",
             "From": TWILIO_NUMBER,
-            "To": FRANCISCO_PHONE
+            "To": WANDER_PHONE
         }).encode()
         req = urllib.request.Request(
             f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_SID}/Messages.json",
