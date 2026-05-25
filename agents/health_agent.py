@@ -33,28 +33,58 @@ FRANCISCO_PHONE = os.getenv("CLIENT_PHONE", "+61404590230")
 
 
 def send_alert(message: str):
-    """Send SMS alert to Francisco's number (Wander reads it)."""
+    """Send alert via GHL email — FREE, no SMS cost."""
     try:
-        credentials = base64.b64encode(
-            f"{TWILIO_SID}:{TWILIO_TOKEN}".encode()
-        ).decode()
-        data = urllib.parse.urlencode({
-            "Body": f"🚨 STACKD AI SYSTEM ALERT\n{message}",
-            "From": TWILIO_NUMBER,
-            "To": FRANCISCO_PHONE
-        }).encode()
-        req = urllib.request.Request(
-            f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_SID}/Messages.json",
-            data=data,
-            headers={
-                "Authorization": f"Basic {credentials}",
-                "Content-Type": "application/x-www-form-urlencoded"
+        KEY = os.getenv("GHL_SEABREEZE_KEY")
+        LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
+        HEADERS = {
+            "Authorization": f"Bearer {KEY}",
+            "Version": "2021-07-28",
+            "Content-Type": "application/json"
+        }
+
+        now_str = datetime.now(SYDNEY_TZ).strftime("%d %b %Y %I:%M%p")
+
+        html = f"""<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;">
+<table width="600" style="background:#fff;border-radius:8px;overflow:hidden;margin:auto;">
+  <tr><td style="background:#A32D2D;padding:20px 30px;">
+    <span style="color:#fff;font-size:18px;font-weight:bold;">🚨 Stackd AI System Alert</span><br>
+    <span style="color:#ffaaaa;font-size:12px;">Sea Breeze Maintenance — {now_str}</span>
+  </td></tr>
+  <tr><td style="padding:24px 30px;">
+    <p style="color:#A32D2D;font-weight:bold;font-size:15px;">Critical issue detected:</p>
+    <div style="background:#FCEBEB;border-left:4px solid #A32D2D;padding:16px;border-radius:4px;">
+      <pre style="color:#444;font-size:13px;white-space:pre-wrap;margin:0;">{message}</pre>
+    </div>
+    <p style="color:#666;font-size:13px;margin-top:16px;">
+      Please check the system and resolve as soon as possible.<br>
+      — Stackd AI Health Monitor
+    </p>
+  </td></tr>
+  <tr><td style="background:#1a1a2e;padding:12px 30px;text-align:center;">
+    <span style="color:#9FE1CB;font-size:11px;">Stackd AI — Sea Breeze Maintenance System Monitor</span>
+  </td></tr>
+</table>
+</body></html>"""
+
+        # Send to Wander via GHL email
+        import requests as req_lib
+        req_lib.post(
+            "https://services.leadconnectorhq.com/conversations/messages",
+            headers=HEADERS,
+            json={
+                "type": "Email",
+                "contactId": "g1Hp5UCnMLVganCyNj93",
+                "subject": f"🚨 Stackd AI Alert — {now_str}",
+                "html": html,
+                "emailTo": "wgodinho@gmail.com",
+                "emailFrom": "hello@seabreezemaintenance.com.au",
             }
         )
-        urllib.request.urlopen(req)
-        logger.warning(f"🚨 Alert sent: {message[:80]}")
+        logger.warning(f"🚨 Alert emailed to Wander: {message[:80]}")
     except Exception as e:
-        logger.error(f"Could not send alert: {e}")
+        logger.error(f"Could not send alert email: {e}")
 
 
 def check_ghl_connection() -> dict:
