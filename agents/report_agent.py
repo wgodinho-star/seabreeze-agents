@@ -69,12 +69,24 @@ def get_todays_stats() -> dict:
         sent = [c for c in contacts if "outreach-sent" in c.get("tags", [])]
         replied = [c for c in contacts if "outreach-replied" in c.get("tags", [])]
 
+        # Get scheduled social posts
+        import requests as req_lib
+        KEY = os.getenv("GHL_SEABREEZE_KEY")
+        LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
+        HEADERS2 = {"Authorization": f"Bearer {KEY}", "Version": "2021-07-28"}
+        r3 = req_lib.get(
+            f"https://services.leadconnectorhq.com/social-media-posting/{LOC}/posts",
+            headers=HEADERS2
+        )
+        scheduled_posts = len(r3.json().get("posts", [])) if r3.status_code == 200 else 0
+
         return {
             "new_leads": new_leads,
             "total_opportunities": len(opps),
             "pipeline_value": total_pipeline,
             "prospects_contacted": len(sent),
             "prospects_replied": len(replied),
+            "scheduled_posts": scheduled_posts,
             "date": now.strftime("%A %d %B %Y"),
             "time": now.strftime("%-I:%M%p").lower()
         }
@@ -127,24 +139,29 @@ def build_daily_email_html(stats: dict, recipient: str) -> str:
     <!-- Stats grid -->
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
       <tr>
-        <td width="48%" style="background:#E1F5EE;border-radius:8px;padding:16px;text-align:center;">
+        <td width="31%" style="background:#E1F5EE;border-radius:8px;padding:16px;text-align:center;">
           <div style="font-size:28px;font-weight:bold;color:#1D9E75;">{stats.get('total_opportunities',0)}</div>
           <div style="font-size:12px;color:#666;margin-top:4px;">Active Opportunities</div>
         </td>
-        <td width="4%"></td>
-        <td width="48%" style="background:#E1F5EE;border-radius:8px;padding:16px;text-align:center;">
+        <td width="2%"></td>
+        <td width="31%" style="background:#E1F5EE;border-radius:8px;padding:16px;text-align:center;">
           <div style="font-size:28px;font-weight:bold;color:#1D9E75;">${stats.get('pipeline_value',0):,.0f}</div>
           <div style="font-size:12px;color:#666;margin-top:4px;">Pipeline Value (AUD)</div>
         </td>
+        <td width="2%"></td>
+        <td width="31%" style="background:#E1F5EE;border-radius:8px;padding:16px;text-align:center;">
+          <div style="font-size:28px;font-weight:bold;color:#1D9E75;">{stats.get('scheduled_posts',0)}</div>
+          <div style="font-size:12px;color:#666;margin-top:4px;">Social Posts Scheduled</div>
+        </td>
       </tr>
-      <tr><td colspan="3" style="padding-top:12px;"></td></tr>
+      <tr><td colspan="5" style="padding-top:12px;"></td></tr>
       <tr>
         <td width="48%" style="background:#f8f8f8;border-radius:8px;padding:16px;text-align:center;">
           <div style="font-size:28px;font-weight:bold;color:#1a1a2e;">{stats.get('prospects_contacted',0)}</div>
           <div style="font-size:12px;color:#666;margin-top:4px;">Prospects Contacted</div>
         </td>
         <td width="4%"></td>
-        <td width="48%" style="background:#f8f8f8;border-radius:8px;padding:16px;text-align:center;">
+        <td colspan="3" width="48%" style="background:#f8f8f8;border-radius:8px;padding:16px;text-align:center;">
           <div style="font-size:28px;font-weight:bold;color:#1a1a2e;">{stats.get('prospects_replied',0)}</div>
           <div style="font-size:12px;color:#666;margin-top:4px;">Replies Received</div>
         </td>
