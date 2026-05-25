@@ -26,7 +26,7 @@ HEADERS = {
 
 ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY")
 FROM_EMAIL = "hello@seabreezemaintenance.com.au"
-WEBSITE_URL = "https://app.gohighlevel.com/v2/preview/OU8agwxXmxq3Av1xYEF8"
+WEBSITE_URL = "https://link.stackdai.com.au"
 ZOE_PHONE = "0480 891 085"
 
 SUBJECTS = {
