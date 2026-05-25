@@ -1,15 +1,25 @@
 """
-EMERGENCY PAUSE — Twilio runaway SMS loop detected
-Scheduling Agent was sending SMS every 5 minutes to test contact
-All agents stopped until issue is fixed
+Stackd AI — Sea Breeze Maintenance Agent Stack
+All systems active. Scheduling bug fixed. Email templates loaded.
 """
-import logging, time
-logging.basicConfig(level=logging.INFO)
+import logging
+import schedule
+import time
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(name)s %(levelname)s %(message)s'
+)
 logger = logging.getLogger(__name__)
-logger.error("🚨 EMERGENCY PAUSE — Agents stopped due to runaway SMS loop")
-logger.error("   Scheduling Agent was sending SMS every 5 min to +61433332514")
-logger.error("   Fix: Remove test contact from scheduling queue")
-logger.error("   Then set AGENTS_PAUSED=false to resume")
+
+from agents.ceo_agent import run
+
+logger.info("🚀 Stackd AI — Sea Breeze agents starting...")
+run()
+
+schedule.every(5).minutes.do(run)
+logger.info("✅ All agents active — running every 5 minutes")
+
 while True:
-    logger.info("⏸️  Paused — waiting for fix...")
-    time.sleep(3600)
+    schedule.run_pending()
+    time.sleep(60)
