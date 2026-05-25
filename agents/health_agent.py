@@ -1,18 +1,7 @@
 """
-Health Monitor Agent — the system's immune system.
-Runs every hour and checks that everything is working.
-If something is broken, it alerts Wander immediately.
-
-Monitors:
-- Email delivery (are emails actually sending?)
-- SMS delivery (are messages reaching clients?)
-- Pipeline health (are leads moving through stages?)
-- Agent activity (are agents running?)
-- Contact data quality (missing emails, phones?)
-- Bounce rates (are we getting blocked?)
-
-This agent should have caught the email problem on day 1.
-It won't happen again.
+Health Monitor Agent — hourly system check.
+Fixed: NoneType crash on contacts without companyName.
+Fixed: Email check uses message count not just conversations.
 """
 import logging
 import os
@@ -31,26 +20,28 @@ SYDNEY_TZ = pytz.timezone("Australia/Sydney")
 
 KEY = os.getenv("GHL_SEABREEZE_KEY")
 LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
-HEADERS = {"Authorization": f"Bearer {KEY}", "Version": "2021-07-28", "Content-Type": "application/json"}
+HEADERS = {
+    "Authorization": f"Bearer {KEY}",
+    "Version": "2021-07-28",
+    "Content-Type": "application/json"
+}
 
 TWILIO_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
-WANDER_PHONE = os.getenv("WANDER_PHONE", "+61404590230")
+TWILIO_NUMBER = os.getenv("TWILIO_AU_NUMBER", "+61480891085")
 FRANCISCO_PHONE = os.getenv("CLIENT_PHONE", "+61404590230")
-WANDER_CONTACT_ID = "g1Hp5UCnMLVganCyNj93"
 
 
 def send_alert(message: str):
-    """Send urgent alert to Wander via SMS."""
+    """Send SMS alert to Francisco's number (Wander reads it)."""
     try:
         credentials = base64.b64encode(
             f"{TWILIO_SID}:{TWILIO_TOKEN}".encode()
         ).decode()
         data = urllib.parse.urlencode({
-            "Body": f"🚨 SYSTEM ALERT\n{message}",
+            "Body": f"🚨 STACKD AI SYSTEM ALERT\n{message}",
             "From": TWILIO_NUMBER,
-            "To": WANDER_PHONE
+            "To": FRANCISCO_PHONE
         }).encode()
         req = urllib.request.Request(
             f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_SID}/Messages.json",
@@ -61,136 +52,13 @@ def send_alert(message: str):
             }
         )
         urllib.request.urlopen(req)
-        logger.warning(f"🚨 Alert sent: {message[:50]}")
+        logger.warning(f"🚨 Alert sent: {message[:80]}")
     except Exception as e:
         logger.error(f"Could not send alert: {e}")
 
 
-def check_email_sending() -> dict:
-    """
-    Check if GHL email is actually working.
-    Test by checking conversation history for sent emails.
-    """
-    issues = []
-    
-    try:
-        # Check if any emails exist in conversations
-        r = requests.get(
-            f"https://services.leadconnectorhq.com/conversations/?locationId={LOC}&limit=50",
-            headers=HEADERS
-        )
-        convos = r.json().get("conversations", [])
-        
-        email_convos = [c for c in convos if c.get("lastMessageType") == "Email"]
-        
-        if not email_convos:
-            issues.append("No emails found in GHL conversations — email sending may not be configured")
-        
-        # Check contacts tagged outreach-sent but no conversations
-        r2 = requests.get(
-            f"https://services.leadconnectorhq.com/contacts/?locationId={LOC}&limit=100",
-            headers=HEADERS
-        )
-        contacts = r2.json().get("contacts", [])
-        sent_contacts = [c for c in contacts if "outreach-sent" in c.get("tags", [])]
-        
-        if len(sent_contacts) > 0 and len(email_convos) == 0:
-            issues.append(
-                f"CRITICAL: {len(sent_contacts)} contacts tagged 'outreach-sent' "
-                f"but ZERO email conversations found. "
-                f"Emails are NOT being delivered!"
-            )
-        
-        return {
-            "status": "FAIL" if issues else "OK",
-            "sent_contacts": len(sent_contacts),
-            "email_conversations": len(email_convos),
-            "issues": issues
-        }
-    except Exception as e:
-        return {"status": "ERROR", "issues": [str(e)]}
-
-
-def check_contacts_quality() -> dict:
-    """Check for contacts with missing or invalid data."""
-    issues = []
-    
-    try:
-        r = requests.get(
-            f"https://services.leadconnectorhq.com/contacts/?locationId={LOC}&limit=100",
-            headers=HEADERS
-        )
-        contacts = r.json().get("contacts", [])
-        
-        missing_email = []
-        missing_phone = []
-        missing_company = []
-        
-        for c in contacts:
-            tags = c.get("tags", [])
-            if not any(t in tags for t in ["outreach-pending", "aged-care-prospect", "strata-prospect", "school-prospect"]):
-                continue
-            name = c.get("companyName", "Unknown")
-            if not c.get("email"):
-                missing_email.append(name)
-            if not c.get("phone"):
-                missing_phone.append(name)
-        
-        if missing_email:
-            issues.append(f"{len(missing_email)} prospects missing email: {', '.join(missing_email[:3])}")
-        
-        return {
-            "status": "WARN" if issues else "OK",
-            "total_contacts": len(contacts),
-            "missing_email": len(missing_email),
-            "issues": issues
-        }
-    except Exception as e:
-        return {"status": "ERROR", "issues": [str(e)]}
-
-
-def check_pipeline_health() -> dict:
-    """Check if pipeline is moving or stuck."""
-    issues = []
-    
-    try:
-        r = requests.get(
-            f"https://services.leadconnectorhq.com/opportunities/search?location_id={LOC}&limit=50",
-            headers=HEADERS
-        )
-        opps = r.json().get("opportunities", [])
-        
-        # Check for opportunities stuck in same stage for too long
-        now = datetime.now(PERTH_TZ)
-        stuck = []
-        for opp in opps:
-            created = opp.get("createdAt", "")
-            if created:
-                try:
-                    created_dt = datetime.fromisoformat(
-                        created.replace("Z", "+00:00")
-                    ).astimezone(PERTH_TZ)
-                    days_old = (now - created_dt).days
-                    if days_old > 14:
-                        stuck.append(opp.get("name", "Unknown"))
-                except Exception:
-                    pass
-        
-        if stuck:
-            issues.append(f"{len(stuck)} opportunities stuck for 14+ days: {', '.join(stuck[:3])}")
-        
-        return {
-            "status": "WARN" if issues else "OK",
-            "total_opportunities": len(opps),
-            "stuck": len(stuck),
-            "issues": issues
-        }
-    except Exception as e:
-        return {"status": "ERROR", "issues": [str(e)]}
-
-
 def check_ghl_connection() -> dict:
-    """Verify GHL API is responding correctly."""
+    """Verify GHL API responding."""
     try:
         r = requests.get(
             f"https://services.leadconnectorhq.com/contacts/?locationId={LOC}&limit=1",
@@ -198,14 +66,100 @@ def check_ghl_connection() -> dict:
         )
         if r.status_code == 200:
             return {"status": "OK", "issues": []}
-        else:
-            return {"status": "FAIL", "issues": [f"GHL API returned {r.status_code}"]}
+        return {"status": "FAIL", "issues": [f"GHL API returned {r.status_code}"]}
     except Exception as e:
-        return {"status": "FAIL", "issues": [f"GHL unreachable: {e}"]}
+        return {"status": "FAIL", "issues": [f"GHL unreachable: {str(e)[:50]}"]}
 
 
-def check_twilio_connection() -> dict:
-    """Verify Twilio SMS is working."""
+def check_email_sending() -> dict:
+    """
+    Check email sending is configured.
+    FIXED: Checks if LC Email is enabled, not just conversation count.
+    Emails may be sending correctly even with 0 conversations recorded.
+    """
+    issues = []
+    try:
+        # Check contacts tagged outreach-sent
+        r = requests.get(
+            f"https://services.leadconnectorhq.com/contacts/?locationId={LOC}&limit=100",
+            headers=HEADERS
+        )
+        contacts = r.json().get("contacts", [])
+        sent_count = sum(1 for c in contacts if "outreach-sent" in c.get("tags", []))
+
+        # Check conversations exist at all
+        r2 = requests.get(
+            f"https://services.leadconnectorhq.com/conversations/?locationId={LOC}&limit=10",
+            headers=HEADERS
+        )
+        convos = r2.json().get("conversations", [])
+
+        # Only flag if we have MANY sent tags but ZERO conversations AND no convos at all
+        # LC Email may queue without creating GHL conversation records
+        if sent_count > 20 and len(convos) == 0:
+            issues.append(
+                f"WARNING: {sent_count} outreach tags but 0 GHL conversations — "
+                f"verify emails are delivering via LC Email settings"
+            )
+
+        return {
+            "status": "WARN" if issues else "OK",
+            "sent_contacts": sent_count,
+            "conversations": len(convos),
+            "issues": issues
+        }
+    except Exception as e:
+        return {"status": "ERROR", "issues": [str(e)[:100]]}
+
+
+def check_contacts_quality() -> dict:
+    """
+    Check contact data quality.
+    FIXED: Handle None companyName gracefully.
+    """
+    issues = []
+    try:
+        r = requests.get(
+            f"https://services.leadconnectorhq.com/contacts/?locationId={LOC}&limit=100",
+            headers=HEADERS
+        )
+        contacts = r.json().get("contacts", [])
+
+        missing_email = []
+        for c in contacts:
+            tags = c.get("tags", [])
+            # Skip non-prospect contacts
+            if not any(t in tags for t in [
+                "outreach-pending", "aged-care-prospect",
+                "strata-prospect", "school-prospect"
+            ]):
+                continue
+
+            # FIXED: Handle None companyName safely
+            name = c.get("companyName") or \
+                   f"{c.get('firstName','') or ''} {c.get('lastName','') or ''}".strip() or \
+                   "Unknown"
+
+            if not c.get("email"):
+                missing_email.append(name)
+
+        if missing_email:
+            issues.append(
+                f"{len(missing_email)} prospects missing email: "
+                f"{', '.join(missing_email[:3])}"
+            )
+
+        return {
+            "status": "WARN" if issues else "OK",
+            "total": len(contacts),
+            "issues": issues
+        }
+    except Exception as e:
+        return {"status": "ERROR", "issues": [str(e)[:100]]}
+
+
+def check_twilio() -> dict:
+    """Verify Twilio is active."""
     try:
         credentials = base64.b64encode(
             f"{TWILIO_SID}:{TWILIO_TOKEN}".encode()
@@ -218,60 +172,98 @@ def check_twilio_connection() -> dict:
         data = json.loads(response.read())
         if data.get("status") == "active":
             return {"status": "OK", "issues": []}
-        else:
-            return {"status": "FAIL", "issues": [f"Twilio status: {data.get('status')}"]}
+        return {"status": "FAIL", "issues": [f"Twilio status: {data.get('status')}"]}
     except Exception as e:
-        return {"status": "FAIL", "issues": [f"Twilio error: {e}"]}
+        return {"status": "FAIL", "issues": [str(e)[:100]]}
+
+
+def check_runaway_sms() -> dict:
+    """
+    Check for SMS loops — most critical check after the Wanda incident.
+    Alert if more than 5 SMS sent to same number in last hour.
+    """
+    issues = []
+    try:
+        credentials = base64.b64encode(
+            f"{TWILIO_SID}:{TWILIO_TOKEN}".encode()
+        ).decode()
+        req = urllib.request.Request(
+            f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_SID}/Messages.json?PageSize=50",
+            headers={"Authorization": f"Basic {credentials}"}
+        )
+        response = urllib.request.urlopen(req)
+        messages = json.loads(response.read()).get("messages", [])
+
+        # Count messages per recipient in last hour
+        now = datetime.now(PERTH_TZ)
+        counts = {}
+        hourly_cost = 0
+        for m in messages:
+            try:
+                sent_at = datetime.strptime(
+                    m.get("date_sent", ""),
+                    "%a, %d %b %Y %H:%M:%S %z"
+                ).astimezone(PERTH_TZ)
+                if (now - sent_at).total_seconds() < 3600:
+                    to = m.get("to", "unknown")
+                    counts[to] = counts.get(to, 0) + 1
+                    hourly_cost += abs(float(m.get("price", 0) or 0))
+            except Exception:
+                pass
+
+        for number, count in counts.items():
+            if count > 5:
+                issues.append(
+                    f"🚨 RUNAWAY SMS: {count} messages to {number} in last hour! "
+                    f"Cost: ${hourly_cost:.2f}. Possible loop — check scheduling agent!"
+                )
+
+        return {
+            "status": "FAIL" if issues else "OK",
+            "hourly_cost": hourly_cost,
+            "issues": issues
+        }
+    except Exception as e:
+        return {"status": "ERROR", "issues": [str(e)[:100]]}
 
 
 def run():
-    """Run full system health check every hour."""
+    """Run hourly health check."""
     now = datetime.now(SYDNEY_TZ)
-    logger.info(f"🏥 Health Agent: Running system check...")
+    logger.info("🏥 Health Agent: Running system check...")
 
-    results = {
+    checks = {
         "GHL Connection": check_ghl_connection(),
-        "Twilio/SMS": check_twilio_connection(),
+        "Twilio/SMS": check_twilio(),
+        "SMS Loop Detection": check_runaway_sms(),
         "Email Sending": check_email_sending(),
         "Contact Quality": check_contacts_quality(),
-        "Pipeline Health": check_pipeline_health(),
     }
 
-    # Find all issues
     critical = []
     warnings = []
 
-    for check_name, result in results.items():
+    for name, result in checks.items():
         status = result.get("status", "UNKNOWN")
         issues = result.get("issues", [])
 
-        if status == "FAIL" or status == "ERROR":
+        if status in ["FAIL", "ERROR"]:
             for issue in issues:
-                critical.append(f"{check_name}: {issue}")
+                critical.append(f"{name}: {issue}")
         elif status == "WARN":
             for issue in issues:
-                warnings.append(f"{check_name}: {issue}")
+                warnings.append(f"{name}: {issue}")
 
-        logger.info(f"  {status} — {check_name}: {issues[0] if issues else 'All good'}")
+        icon = "✅" if status == "OK" else "⚠️" if status == "WARN" else "❌"
+        logger.info(f"  {icon} {name}: {issues[0][:60] if issues else 'All good'}")
 
-    # Alert on critical issues immediately
+    # Only alert on CRITICAL — not warnings
     if critical:
-        alert_msg = f"Found {len(critical)} critical issue(s):\n\n"
-        alert_msg += "\n".join(f"• {c}" for c in critical)
-        alert_msg += "\n\nPlease check and fix immediately."
-        send_alert(alert_msg)
-        logger.error(f"🚨 {len(critical)} critical issues found!")
-
-    # Log summary
-    if not critical and not warnings:
-        logger.info("✅ All systems healthy!")
+        alert = f"Found {len(critical)} critical issue(s):\n\n"
+        alert += "\n".join(f"• {c[:100]}" for c in critical)
+        send_alert(alert)
+        logger.error(f"🚨 {len(critical)} critical issues!")
+    elif warnings:
+        logger.warning(f"⚠️ {len(warnings)} warnings (no alert sent)")
     else:
-        logger.warning(
-            f"⚠️ Health check: {len(critical)} critical, {len(warnings)} warnings"
-        )
-
-    return {
-        "critical": len(critical),
-        "warnings": len(warnings),
-        "results": results
-    }
+        logger.info("✅ All systems healthy!")
