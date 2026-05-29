@@ -15,19 +15,19 @@ import pytz
 from tools import claude_ai
 
 logger = logging.getLogger(__name__)
-PERTH_TZ = pytz.timezone("Australia/Perth")
+SYDNEY_TZ = pytz.timezone("Australia/Sydney")
 
-KEY = os.getenv("GHL_SEABREEZE_KEY")
-LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
+KEY = os.getenv("GHL_ENVIROMENTOR_KEY")
+LOC = os.getenv("GHL_ENVIROMENTOR_LOCATION_ID")
 HEADERS = {
     "Authorization": f"Bearer {KEY}",
     "Version": "2021-07-28",
     "Content-Type": "application/json"
 }
 
-FRANCISCO_EMAIL = os.getenv("CLIENT_EMAIL", "accounts@seabreezemaintenance.com.au")
+FRANCISCO_EMAIL = os.getenv("CLIENT_EMAIL", "accounts@enviromentormaintenance.com.au")
 FRANCISCO_PHONE = os.getenv("CLIENT_PHONE", "+61404590230")
-WEBSITE = "seabreezemaintenance.com.au"
+WEBSITE = "enviromentormaintenance.com.au"
 
 
 def days_since_tag(contact: dict, tag_prefix: str) -> int:
@@ -40,8 +40,8 @@ def days_since_tag(contact: dict, tag_prefix: str) -> int:
     try:
         added = datetime.fromisoformat(
             date_added.replace("Z", "+00:00")
-        ).astimezone(PERTH_TZ)
-        return (datetime.now(PERTH_TZ) - added).days
+        ).astimezone(SYDNEY_TZ)
+        return (datetime.now(SYDNEY_TZ) - added).days
     except Exception:
         return 0
 
@@ -53,45 +53,45 @@ def generate_followup_email(company: str, prospect_type: str,
     if followup_num == 2:
         prompt = f"""Write a short, warm follow-up email (follow-up #2, sent 4 days after initial outreach) 
 to a {'facility manager at an aged care facility' if prospect_type == 'aged-care' else 'property manager at a strata company'} 
-at {company} in Perth WA.
+at {company} in Sydney NSW.
 
-From Francisco Da Silva, Sea Breeze Maintenance.
+From Francisco Da Silva, Enviromentor.
 Reference the previous email briefly. 
 Add a soft reason why NOW is a good time (e.g. approaching winter = gutter cleaning season, 
 wet season = slip hazards increase).
 Keep it to 3-4 sentences. No hard sell. 
 Subject line included.
-Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | Powered by Stackd AI AI"""
+Sign off: Francisco Da Silva | Enviromentor | 0404 590 230 | Powered by Stackd AI AI"""
 
     elif followup_num == 3:
         prompt = f"""Write a value-add follow-up email (follow-up #3, sent 10 days after initial outreach) 
 to a {'facility manager at an aged care facility' if prospect_type == 'aged-care' else 'property manager at a strata company'} 
-at {company} in Perth WA.
+at {company} in Sydney NSW.
 
-From Francisco Da Silva, Sea Breeze Maintenance.
+From Francisco Da Silva, Enviromentor.
 Share one useful insight — e.g. "Did you know blocked gutters are the #1 cause of water damage claims 
-in Perth properties?" or "Falls in aged care are 3x more likely on wet outdoor surfaces."
+in Sydney properties?" or "Falls in aged care are 3x more likely on wet outdoor surfaces."
 Make it genuinely useful, not salesy.
 Offer the free inspection again casually at the end.
 Keep it to 4-5 sentences.
 Subject line included.
-Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | Powered by Stackd AI AI"""
+Sign off: Francisco Da Silva | Enviromentor | 0404 590 230 | Powered by Stackd AI AI"""
 
     else:  # followup_num == 4, day 21
         prompt = f"""Write a final follow-up email (follow-up #4, sent 21 days after initial outreach) 
 to a {'facility manager at an aged care facility' if prospect_type == 'aged-care' else 'property manager at a strata company'} 
-at {company} in Perth WA.
+at {company} in Sydney NSW.
 
-From Francisco Da Silva, Sea Breeze Maintenance.
+From Francisco Da Silva, Enviromentor.
 This is the last email — make it brief, leave the door open, no pressure.
 Something like "I'll leave the ball in your court — if the timing is ever right, 
 we'd love to help keep your property safe."
 Warm and human. 3 sentences max.
 Subject line included.
-Sign off: Francisco Da Silva | Sea Breeze Maintenance | 0404 590 230 | Powered by Stackd AI AI"""
+Sign off: Francisco Da Silva | Enviromentor | 0404 590 230 | Powered by Stackd AI AI"""
 
     content = claude_ai.think(
-        system_prompt="You write warm, professional follow-up emails for a property maintenance business in Perth WA.",
+        system_prompt="You write warm, professional follow-up emails for a property maintenance business in Sydney NSW.",
         user_message=prompt,
         max_tokens=300
     )
@@ -159,7 +159,7 @@ def run():
     logger.info("📬 Follow-up Agent: Checking sequences...")
 
     # Only run weekday mornings
-    now = datetime.now(PERTH_TZ)
+    now = datetime.now(SYDNEY_TZ)
     if now.weekday() >= 5 or not (8 <= now.hour < 11):
         return
 

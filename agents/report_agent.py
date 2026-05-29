@@ -1,8 +1,8 @@
 """
 Report Agent — daily end-of-day email to Francisco + weekly summary.
 Zoe signs the email. No SMS to Francisco — email only.
-Daily: 5pm Perth time
-Weekly: Monday 8am Perth time
+Daily: 5pm Sydney time
+Weekly: Monday 8am Sydney time
 """
 import logging
 import os
@@ -11,10 +11,10 @@ from datetime import datetime, timedelta
 import pytz
 
 logger = logging.getLogger(__name__)
-PERTH_TZ = pytz.timezone("Australia/Perth")
+SYDNEY_TZ = pytz.timezone("Australia/Sydney")
 
-KEY = os.getenv("GHL_SEABREEZE_KEY")
-LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
+KEY = os.getenv("GHL_ENVIROMENTOR_KEY")
+LOC = os.getenv("GHL_ENVIROMENTOR_LOCATION_ID")
 HEADERS = {
     "Authorization": f"Bearer {KEY}",
     "Version": "2021-07-28",
@@ -22,16 +22,16 @@ HEADERS = {
 }
 
 FRANCISCO_CONTACT_ID = os.getenv("GHL_FRANCISCO_CONTACT_ID")
-FRANCISCO_EMAIL = os.getenv("CLIENT_EMAIL", "accounts@seabreezemaintenance.com.au")
-WANDER_CONTACT_ID = "g1Hp5UCnMLVganCyNj93"
-WANDER_EMAIL = "wgodinho@gmail.com"
-FROM_EMAIL = "hello@seabreezemaintenance.com.au"
+FRANCISCO_EMAIL = os.getenv("CLIENT_EMAIL", "accounts@enviromentormaintenance.com.au")
+NSWNDER_CONTACT_ID = "g1Hp5UCnMLVganCyNj93"
+NSWNDER_EMAIL = "wgodinho@gmail.com"
+FROM_EMAIL = "zoe@enviromentor.com"
 
 
 def get_todays_stats() -> dict:
     """Get today's activity stats from GHL."""
     try:
-        now = datetime.now(PERTH_TZ)
+        now = datetime.now(SYDNEY_TZ)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         # Get contacts added today
@@ -48,7 +48,7 @@ def get_todays_stats() -> dict:
                 try:
                     dt = datetime.fromisoformat(
                         added.replace("Z", "+00:00")
-                    ).astimezone(PERTH_TZ)
+                    ).astimezone(SYDNEY_TZ)
                     if dt >= today_start:
                         new_leads.append(c.get("companyName") or
                                         f"{c.get('firstName','')} {c.get('lastName','')}".strip())
@@ -71,8 +71,8 @@ def get_todays_stats() -> dict:
 
         # Get scheduled social posts
         import requests as req_lib
-        KEY = os.getenv("GHL_SEABREEZE_KEY")
-        LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
+        KEY = os.getenv("GHL_ENVIROMENTOR_KEY")
+        LOC = os.getenv("GHL_ENVIROMENTOR_LOCATION_ID")
         HEADERS2 = {"Authorization": f"Bearer {KEY}", "Version": "2021-07-28"}
         r3 = req_lib.get(
             f"https://services.leadconnectorhq.com/social-media-posting/{LOC}/posts",
@@ -110,10 +110,10 @@ def build_daily_email_html(stats: dict, recipient: str) -> str:
     is_francisco = recipient == "francisco"
     greeting = "Hi Francisco! 👋" if is_francisco else "Hi Wander! 👋"
     intro = (
-        "Here's your daily Sea Breeze Maintenance update from Zoe. "
+        "Here's your daily Enviromentor update from Zoe. "
         "Everything is running smoothly — here's what happened today."
         if is_francisco else
-        "Here's today's Stackd AI system report for Sea Breeze Maintenance."
+        "Here's today's Stackd AI system report for Enviromentor."
     )
 
     return f"""<!DOCTYPE html>
@@ -124,7 +124,7 @@ def build_daily_email_html(stats: dict, recipient: str) -> str:
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
 
   <tr><td style="background:#1a1a2e;padding:24px 36px;">
-    <span style="color:#fff;font-size:18px;font-weight:bold;">🌿 Sea Breeze Maintenance</span><br>
+    <span style="color:#fff;font-size:18px;font-weight:bold;">🌿 Enviromentor</span><br>
     <span style="color:#9FE1CB;font-size:12px;">Daily Report — {stats.get('date','')}</span>
   </td></tr>
 
@@ -181,14 +181,14 @@ def build_daily_email_html(stats: dict, recipient: str) -> str:
         {"".join(f'<tr><td style="font-size:13px;color:#444;padding:3px 0;">✅ {agent}</td></tr>' for agent in
         ['Zoe (Voice AI) — active 24/7',
          'Lead Agent — monitoring',
-         'Outreach Agent — fires 8am Perth',
+         'Outreach Agent — fires 8am Sydney',
          'Follow-up Agent — running',
          'Review Agent — monitoring',
          'Health Agent — all systems healthy'])}
       </table>
     </div>
 
-    {"<p style='color:#666;font-size:13px;'>Outreach emails will fire tomorrow morning at 8am Perth time. I'll be in touch if anything needs your attention. Have a great evening! 😊</p>" if is_francisco else
+    {"<p style='color:#666;font-size:13px;'>Outreach emails will fire tomorrow morning at 8am Sydney time. I'll be in touch if anything needs your attention. Have a great evening! 😊</p>" if is_francisco else
      "<p style='color:#666;font-size:13px;'>Full agent logs available on Railway. All systems nominal.</p>"}
 
   </td></tr>
@@ -202,15 +202,15 @@ def build_daily_email_html(stats: dict, recipient: str) -> str:
         </td>
         <td>
           <div style="color:#1a1a2e;font-weight:bold;font-size:14px;">Zoe</div>
-          <div style="color:#666;font-size:12px;">Business Administrator — Sea Breeze Maintenance</div>
-          <div style="color:#1D9E75;font-size:12px;">📞 0480 891 085 | hello@seabreezemaintenance.com.au</div>
+          <div style="color:#666;font-size:12px;">Business Administrator — Enviromentor</div>
+          <div style="color:#1D9E75;font-size:12px;">📞 0480 891 085 | zoe@enviromentor.com</div>
         </td>
       </tr>
     </table>
   </td></tr>
 
   <tr><td style="background:#1a1a2e;padding:16px 36px;text-align:center;">
-    <span style="color:#9FE1CB;font-size:11px;">Sea Breeze Maintenance Pty Ltd — Perth &amp; South West WA</span><br>
+    <span style="color:#9FE1CB;font-size:11px;">Enviromentor Pty Ltd — Sydney &amp; Sydney metro</span><br>
     <span style="color:#555;font-size:11px;">Powered by Stackd AI 🌿</span>
   </td></tr>
 
@@ -238,8 +238,8 @@ def send_email(contact_id: str, to_email: str, subject: str, html: str):
 
 
 def run():
-    """Send daily report at 5pm Perth, weekly on Monday 8am Perth."""
-    now = datetime.now(PERTH_TZ)
+    """Send daily report at 5pm Sydney, weekly on Monday 8am Sydney."""
+    now = datetime.now(SYDNEY_TZ)
 
     # Daily 5pm report
     if now.hour == 17:
@@ -252,7 +252,7 @@ def run():
         if send_email(
             FRANCISCO_CONTACT_ID,
             FRANCISCO_EMAIL,
-            f"🌿 Sea Breeze Daily Update — {date_str}",
+            f"🌿 Enviromentor Daily Update — {date_str}",
             html_f
         ):
             logger.info("✅ Daily report sent to Francisco")
@@ -260,9 +260,9 @@ def run():
         # Send to Wander
         html_w = build_daily_email_html(stats, "wander")
         if send_email(
-            WANDER_CONTACT_ID,
-            WANDER_EMAIL,
-            f"📊 Stackd AI — Sea Breeze Daily Report — {date_str}",
+            NSWNDER_CONTACT_ID,
+            NSWNDER_EMAIL,
+            f"📊 Stackd AI — Enviromentor Daily Report — {date_str}",
             html_w
         ):
             logger.info("✅ Daily report sent to Wander")
@@ -276,7 +276,7 @@ def run():
         send_email(
             FRANCISCO_CONTACT_ID,
             FRANCISCO_EMAIL,
-            f"🌿 Sea Breeze Weekly Summary — Week of {now.strftime('%d %B')}",
+            f"🌿 Enviromentor Weekly Summary — Week of {now.strftime('%d %B')}",
             html_f
         )
         logger.info("✅ Weekly report sent")

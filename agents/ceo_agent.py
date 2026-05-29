@@ -9,7 +9,7 @@ import pytz
 
 logger = logging.getLogger(__name__)
 
-PERTH_TZ = pytz.timezone("Australia/Perth")
+SYDNEY_TZ = pytz.timezone("Australia/Sydney")
 
 
 def run():
@@ -17,11 +17,11 @@ def run():
     CEO Agent decision loop.
     Orchestrates all sub-agents based on time and conditions.
     """
-    now = datetime.now(PERTH_TZ)
+    now = datetime.now(SYDNEY_TZ)
     hour = now.hour
     weekday = now.weekday()  # 0=Monday
 
-    logger.info(f"🧠 CEO Agent: Tick at {now.strftime('%A %d %B %Y %H:%M')} Perth time")
+    logger.info(f"🧠 CEO Agent: Tick at {now.strftime('%A %d %B %Y %H:%M')} Sydney time")
 
     # ── Always run: Lead Agent (every 5 min) ──────────────
     try:

@@ -32,13 +32,13 @@ def run():
         contact_id = lead["id"]
         name = f"{lead.get('firstName', '')} {lead.get('lastName', '')}".strip()
         phone = lead.get("phone", "")
-        suburb = lead.get("city", "Perth")
+        suburb = lead.get("city", "Sydney")
         tags = lead.get("tags", [])
 
         # Detect service type from tags
         service = "grounds maintenance"
         for tag in tags:
-            if tag not in ["new-lead", "lead-processed", "owner", "seabreeze"]:
+            if tag not in ["new-lead", "lead-processed", "owner", "enviromentor"]:
                 service = tag.replace("-", " ")
                 break
 

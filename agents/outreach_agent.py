@@ -1,23 +1,21 @@
 """
-Outreach Agent — 10 branded emails per day.
-Uses mini landing page style HTML template.
+Enviromentor Outreach Agent — Sydney
+Sends 10 branded emails per weekday morning to Sydney prospects.
 Signed by Zoe. Two CTAs: Call Zoe + Book online.
-Fires weekdays 8-10am Perth time.
 """
 import logging
 import os
 import requests
 import anthropic
 import time
-import uuid
 from datetime import datetime
 import pytz
 
 logger = logging.getLogger(__name__)
-PERTH_TZ = pytz.timezone("Australia/Perth")
+SYDNEY_TZ = pytz.timezone("Australia/Sydney")
 
-KEY = os.getenv("GHL_SEABREEZE_KEY")
-LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
+KEY = os.getenv("GHL_ENVIROMENTOR_KEY")
+LOC = os.getenv("GHL_ENVIROMENTOR_LOCATION_ID")
 HEADERS = {
     "Authorization": f"Bearer {KEY}",
     "Version": "2021-07-28",
@@ -25,161 +23,136 @@ HEADERS = {
 }
 
 ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY")
-FROM_EMAIL = "hello@seabreezemaintenance.com.au"
-WEBSITE_URL = "https://link.stackdai.com.au"
+FROM_EMAIL = "zoe@enviromentor.com"
+WEBSITE_URL = "https://enviromentor.com"
 ZOE_PHONE = "0480 891 085"
 
 SUBJECTS = {
-    "aged-care": "Keeping Your Residents Safe — Free Property Inspection | Sea Breeze Maintenance",
-    "strata": "Protecting Your Strata Portfolio — Free Quote | Sea Breeze Maintenance",
-    "school": "Keeping Your Campus Safe — Free Grounds Inspection | Sea Breeze Maintenance",
+    "strata": "Keeping Your Buildings Safe This Season — Free Property Check | Enviromentor",
+    "aged care": "Protecting Your Residents — Free Property Safety Check | Enviromentor",
+    "homeowner": "Your Sydney Property — Free Gutter & Garden Inspection | Enviromentor",
 }
 
-BODY_PROMPTS = {
-    "aged-care": """Write a warm professional cold email body to a facility manager at {company} aged care facility in Perth WA.
-From: Zoe at Sea Breeze Maintenance
-Key message: resident safety, falls prevention, liability reduction, compliance
-Services: garden maintenance, preventive gutter works, pressure washing, anti-slip surfaces
-Offer: Free on-site safety inspection, no obligation
-Tone: warm, caring, professional Australian. 4-5 sentences only.
+PROMPTS = {
+    "strata": """Write a warm professional cold email body to a strata manager at {company} in Sydney.
+From: Zoe at Enviromentor — gutter cleaning and garden maintenance specialists.
+Key points: prevent water damage and liability, reduce trip hazards in common areas,
+maintain property value, regular maintenance saves owners money.
+Offer: free on-site assessment, no obligation.
+Tone: warm, professional, Australian. 4 short sentences only.
 NO subject line, NO signature — body paragraphs only.""",
 
-    "strata": """Write a professional cold email body to a property manager at {company} strata company in Perth WA.
-From: Zoe at Sea Breeze Maintenance
-Key message: liability reduction, body corporate compliance, portfolio maintenance, property presentation
-Services: garden maintenance, preventive gutter works, pressure washing, anti-slip surfaces
-Offer: Free quote for entire property portfolio
-Tone: professional, B2B, confident but warm Australian. 4-5 sentences only.
-NO subject line, NO signature — body paragraphs only.""",
+    "aged care": """Write a warm professional cold email body to a facility manager at {company} aged care in Sydney.
+From: Zoe at Enviromentor — gutter cleaning and garden maintenance specialists.
+Key points: resident safety, falls prevention from wet leaf litter,
+maintain welcoming grounds, reduce liability.
+Offer: free property safety inspection.
+Tone: warm, caring, professional Australian. 4 short sentences.
+NO subject line, NO signature.""",
 
-    "school": """Write a professional cold email body to a facilities manager at {company} school in Perth WA.
-From: Zoe at Sea Breeze Maintenance
-Key message: student safety, campus presentation, duty of care, grounds maintenance
-Services: anti-slip surfaces, preventive gutter works, pressure washing, garden maintenance
-Offer: Free on-site grounds safety inspection
-Tone: professional, safety-focused, warm Australian. 4-5 sentences only.
-NO subject line, NO signature — body paragraphs only.""",
+    "homeowner": """Write a warm professional cold email body to a homeowner contact at {company} in Sydney.
+From: Zoe at Enviromentor — gutter cleaning and garden maintenance specialists.
+Key points: protect home from water damage, keep garden looking great,
+free up weekends, professional reliable service.
+Offer: free property assessment and tailored quote.
+Tone: warm, friendly, Australian. 4 short sentences.
+NO subject line, NO signature."""
 }
 
-CTA_LABELS = {
-    "aged-care": "📋 Book a Free Safety Inspection",
-    "strata": "📋 Request a Free Portfolio Quote",
-    "school": "📋 Book a Free Grounds Inspection",
+ACCENTS = {
+    "strata": "Free Property Safety Check — Sydney Strata Specialists",
+    "aged care": "Protecting Sydney's Aged Care Properties — Free Inspection",
+    "homeowner": "Free Property Assessment — Sydney's Trusted Gardeners"
 }
 
-ACCENT_BARS = {
-    "aged-care": "Free On-Site Safety Inspection — No Obligation",
-    "strata": "Free Portfolio Quote — Perth &amp; South West WA",
-    "school": "Free Grounds Safety Inspection — Perth Schools",
+CTAS = {
+    "strata": "📋 Book a Free Strata Assessment",
+    "aged care": "📋 Book a Free Safety Inspection",
+    "homeowner": "📋 Get Your Free Quote"
 }
 
 
 def build_email_html(body: str, first_name: str, ptype: str) -> str:
-    """Build branded HTML email matching website style."""
     paragraphs = [p.strip() for p in body.strip().split("\n") if p.strip()]
     body_html = "".join(
         f'<p style="color:#444;font-size:15px;line-height:1.7;margin:0 0 16px 0;">{p}</p>'
         for p in paragraphs
     )
+    accent = ACCENTS.get(ptype, ACCENTS["homeowner"])
+    cta = CTAS.get(ptype, CTAS["homeowner"])
 
     return f"""<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:24px 0;">
+<html><body style="margin:0;padding:0;background:#f4f1e8;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1e8;padding:24px 0;">
 <tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-
-  <tr><td style="background:#1a1a2e;padding:28px 40px;">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#faf8f2;border-radius:8px;overflow:hidden;box-shadow:0 4px 20px rgba(26,58,46,0.08);">
+  <tr><td style="background:#1a3a2e;padding:28px 40px;">
     <table width="100%" cellpadding="0" cellspacing="0"><tr>
-      <td><div style="display:inline-block;background:#1D9E75;border-radius:50%;width:44px;height:44px;line-height:44px;text-align:center;color:#fff;font-weight:bold;font-size:18px;vertical-align:middle;">SB</div>
-      <span style="color:#fff;font-size:20px;font-weight:bold;margin-left:12px;vertical-align:middle;">Sea Breeze Maintenance</span></td>
+      <td>
+        <span style="color:#fff;font-size:22px;font-weight:bold;letter-spacing:-0.5px;">🌿 Enviromentor</span>
+      </td>
     </tr><tr>
-      <td style="padding-top:6px;"><span style="color:#9FE1CB;font-size:12px;">Property Safety Specialists — Perth &amp; South West WA</span></td>
+      <td style="padding-top:6px;"><span style="color:#7da882;font-size:12px;">Sydney's Property Care Specialists</span></td>
     </tr></table>
   </td></tr>
-
-  <tr><td style="background:#1D9E75;padding:10px 40px;">
-    <span style="color:#fff;font-size:12px;letter-spacing:1px;text-transform:uppercase;font-weight:bold;">{ACCENT_BARS[ptype]}</span>
+  <tr><td style="background:#4a8b5c;padding:10px 40px;">
+    <span style="color:#fff;font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">{accent}</span>
   </td></tr>
-
   <tr><td style="padding:36px 40px 24px 40px;">
-    <p style="color:#1a1a2e;font-size:16px;font-weight:bold;margin:0 0 20px 0;">Hi {first_name},</p>
+    <p style="color:#1a3a2e;font-size:16px;font-weight:bold;margin:0 0 20px 0;">Hi {first_name},</p>
     {body_html}
-
-    <!-- Services -->
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
       <tr>
-        <td width="25%" style="text-align:center;padding:12px 4px;background:#E1F5EE;border-radius:6px;">
-          <div style="font-size:20px;margin-bottom:4px;">🌿</div>
-          <div style="font-size:10px;color:#1D9E75;font-weight:bold;line-height:1.3;">Garden<br>Maintenance</div>
+        <td width="48%" style="text-align:center;padding:18px 4px;background:#e1f5ee;border-radius:8px;">
+          <div style="font-size:24px;margin-bottom:4px;">🏠</div>
+          <div style="font-size:13px;color:#1a3a2e;font-weight:bold;">Gutter Cleaning</div>
+          <div style="font-size:11px;color:#666;">Prevents water damage</div>
         </td>
-        <td width="2%"></td>
-        <td width="25%" style="text-align:center;padding:12px 4px;background:#E1F5EE;border-radius:6px;">
-          <div style="font-size:20px;margin-bottom:4px;">🏠</div>
-          <div style="font-size:10px;color:#1D9E75;font-weight:bold;line-height:1.3;">Preventive<br>Gutter Works</div>
-        </td>
-        <td width="2%"></td>
-        <td width="25%" style="text-align:center;padding:12px 4px;background:#E1F5EE;border-radius:6px;">
-          <div style="font-size:20px;margin-bottom:4px;">💧</div>
-          <div style="font-size:10px;color:#1D9E75;font-weight:bold;line-height:1.3;">Pressure<br>Washing</div>
-        </td>
-        <td width="2%"></td>
-        <td width="25%" style="text-align:center;padding:12px 4px;background:#E1F5EE;border-radius:6px;">
-          <div style="font-size:20px;margin-bottom:4px;">🦺</div>
-          <div style="font-size:10px;color:#1D9E75;font-weight:bold;line-height:1.3;">Anti-Slip<br>Surfaces</div>
+        <td width="4%"></td>
+        <td width="48%" style="text-align:center;padding:18px 4px;background:#e1f5ee;border-radius:8px;">
+          <div style="font-size:24px;margin-bottom:4px;">🌿</div>
+          <div style="font-size:13px;color:#1a3a2e;font-weight:bold;">Garden Maintenance</div>
+          <div style="font-size:11px;color:#666;">Keeps property thriving</div>
         </td>
       </tr>
     </table>
-
-    <!-- Primary CTA -->
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
       <tr><td align="center">
-        <a href="tel:+61480891085" style="display:inline-block;background:#1D9E75;color:#fff;text-decoration:none;padding:16px 40px;border-radius:6px;font-size:16px;font-weight:bold;">
+        <a href="tel:+61480891085" style="display:inline-block;background:#1a3a2e;color:#fff;text-decoration:none;padding:16px 40px;border-radius:100px;font-size:16px;font-weight:bold;">
           📞 Call Zoe Now — {ZOE_PHONE}
         </a>
       </td></tr>
     </table>
-
-    <!-- Secondary CTA -->
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
       <tr><td align="center">
-        <a href="{WEBSITE_URL}" style="display:inline-block;background:#fff;color:#1D9E75;text-decoration:none;padding:14px 40px;border-radius:6px;font-size:15px;font-weight:bold;border:2px solid #1D9E75;">
-          {CTA_LABELS[ptype]}
+        <a href="{WEBSITE_URL}" style="display:inline-block;background:#fff;color:#1a3a2e;text-decoration:none;padding:14px 40px;border-radius:100px;font-size:15px;font-weight:bold;border:2px solid #4a8b5c;">
+          {cta}
         </a>
       </td></tr>
     </table>
-
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
       <tr><td style="border-top:1px solid #eee;"></td></tr>
     </table>
-
-    <!-- Signature -->
     <table cellpadding="0" cellspacing="0">
       <tr>
         <td style="padding-right:14px;">
-          <div style="width:46px;height:46px;background:#1D9E75;border-radius:50%;text-align:center;line-height:46px;color:#fff;font-weight:bold;font-size:18px;">Z</div>
+          <div style="width:46px;height:46px;background:#4a8b5c;border-radius:50%;text-align:center;line-height:46px;color:#fff;font-weight:bold;font-size:18px;">Z</div>
         </td>
         <td>
-          <div style="color:#1a1a2e;font-weight:bold;font-size:15px;">Zoe</div>
+          <div style="color:#1a3a2e;font-weight:bold;font-size:15px;">Zoe</div>
           <div style="color:#666;font-size:12px;">Business Administrator</div>
-          <div style="color:#1D9E75;font-size:13px;font-weight:bold;">Sea Breeze Maintenance</div>
+          <div style="color:#4a8b5c;font-size:13px;font-weight:bold;">Enviromentor</div>
           <div style="color:#666;font-size:12px;margin-top:4px;">
-            📞 <a href="tel:+61480891085" style="color:#1D9E75;text-decoration:none;">{ZOE_PHONE}</a> &nbsp;|&nbsp;
-            ✉️ <a href="mailto:{FROM_EMAIL}" style="color:#1D9E75;text-decoration:none;">{FROM_EMAIL}</a>
+            📞 <a href="tel:+61480891085" style="color:#4a8b5c;text-decoration:none;">{ZOE_PHONE}</a> &nbsp;|&nbsp;
+            ✉️ <a href="mailto:{FROM_EMAIL}" style="color:#4a8b5c;text-decoration:none;">{FROM_EMAIL}</a>
           </div>
         </td>
       </tr>
     </table>
   </td></tr>
-
-  <tr><td style="background:#1a1a2e;padding:18px 40px;text-align:center;">
-    <p style="color:#9FE1CB;font-size:11px;margin:0 0 4px 0;">Sea Breeze Maintenance Pty Ltd — Perth &amp; South West WA</p>
-    <p style="color:#555;font-size:10px;margin:0;">
-      You're receiving this because we believe we can help keep your property safe. &nbsp;
-      <a href="#" style="color:#555;">Unsubscribe</a>
-    </p>
+  <tr><td style="background:#1a3a2e;padding:18px 40px;text-align:center;">
+    <p style="color:#7da882;font-size:11px;margin:0;">Enviromentor — Sydney's Property Care Specialists 🌿</p>
   </td></tr>
-
 </table>
 </td></tr>
 </table>
@@ -187,24 +160,23 @@ def build_email_html(body: str, first_name: str, ptype: str) -> str:
 
 
 def generate_body(company: str, ptype: str) -> str:
-    """Generate personalised email body using Claude."""
     try:
         client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+        prompt = PROMPTS.get(ptype, PROMPTS["homeowner"]).format(company=company)
         response = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=300,
-            messages=[{"role": "user", "content": BODY_PROMPTS[ptype].format(company=company)}]
+            messages=[{"role": "user", "content": prompt}]
         )
         return response.content[0].text.strip()
     except Exception as e:
         logger.error(f"Claude error: {e}")
-        return ("I hope this message finds you well. At Sea Breeze Maintenance, "
-                "we specialise in property safety services across Perth and South West WA. "
-                "We'd love to offer you a complimentary inspection — no obligation whatsoever.")
+        return ("I hope this message finds you well. At Enviromentor we specialise in "
+                "gutter cleaning and garden maintenance across Sydney. We'd love to offer "
+                "you a complimentary property assessment — no obligation whatsoever.")
 
 
 def get_pending_prospects() -> list:
-    """Get contacts pending outreach."""
     r = requests.get(
         f"https://services.leadconnectorhq.com/contacts/?locationId={LOC}&limit=100",
         headers=HEADERS
@@ -213,32 +185,34 @@ def get_pending_prospects() -> list:
     pending = []
     for c in contacts:
         tags = c.get("tags", [])
-        name = c.get("companyName") or ""
+        name = c.get("companyName") or f"{c.get('firstName','')} {c.get('lastName','')}".strip()
         email = c.get("email", "")
-        if not name or not email:
+        if not name or not email or "outreach-sent" in tags:
             continue
-        if "outreach-sent" in tags:
-            continue
-        if any(t in tags for t in ["aged-care-prospect", "strata-prospect",
-                                    "school-prospect", "outreach-pending"]):
-            ptype = ("aged-care" if "aged-care-prospect" in tags
-                     else "strata" if "strata-prospect" in tags else "school")
+        # Determine prospect type from tags
+        ptype = "homeowner"
+        if "strata" in tags:
+            ptype = "strata"
+        elif "aged care" in tags:
+            ptype = "aged care"
+        elif "homeowner" in tags:
+            ptype = "homeowner"
+        if "new lead" in tags or "outreach-pending" in tags:
             pending.append({
                 "name": name,
                 "email": email,
                 "id": c.get("id"),
                 "type": ptype,
-                "firstName": c.get("firstName", "there")
+                "firstName": c.get("firstName") or "there"
             })
     return pending
 
 
 def send_outreach(prospect: dict) -> bool:
-    """Send branded outreach email."""
     try:
         body = generate_body(prospect["name"], prospect["type"])
-        html = build_email_html(body, prospect["firstName"] or "there", prospect["type"])
-        subject = SUBJECTS[prospect["type"]]
+        html = build_email_html(body, prospect["firstName"], prospect["type"])
+        subject = SUBJECTS.get(prospect["type"], SUBJECTS["homeowner"])
 
         r = requests.post(
             "https://services.leadconnectorhq.com/conversations/messages",
@@ -254,34 +228,55 @@ def send_outreach(prospect: dict) -> bool:
         )
 
         if r.status_code in [200, 201]:
-            # Tag as sent
             requests.put(
                 f"https://services.leadconnectorhq.com/contacts/{prospect['id']}",
                 headers=HEADERS,
                 json={"tags": ["outreach-sent"]}
             )
-            requests.post(
-                f"https://services.leadconnectorhq.com/contacts/{prospect['id']}/notes",
-                headers=HEADERS,
-                json={"body": f"Outreach email sent\nSubject: {subject}"}
-            )
             logger.info(f"✅ Email sent to {prospect['name']}")
             return True
-        else:
-            logger.warning(f"⚠️  {prospect['name']}: {r.status_code}")
-            return False
+        elif r.status_code == 400 and "DND" in r.text:
+            # Try removing DND first
+            requests.put(
+                f"https://services.leadconnectorhq.com/contacts/{prospect['id']}",
+                headers=HEADERS,
+                json={"dnd": False}
+            )
+            time.sleep(1)
+            r2 = requests.post(
+                "https://services.leadconnectorhq.com/conversations/messages",
+                headers=HEADERS,
+                json={
+                    "type": "Email",
+                    "contactId": prospect["id"],
+                    "subject": subject,
+                    "html": html,
+                    "emailFrom": FROM_EMAIL,
+                    "emailTo": prospect["email"],
+                }
+            )
+            if r2.status_code in [200, 201]:
+                requests.put(
+                    f"https://services.leadconnectorhq.com/contacts/{prospect['id']}",
+                    headers=HEADERS,
+                    json={"tags": ["outreach-sent"]}
+                )
+                logger.info(f"✅ Email sent (DND removed): {prospect['name']}")
+                return True
+        logger.warning(f"⚠️  {prospect['name']}: {r.status_code}")
+        return False
     except Exception as e:
         logger.error(f"❌ {prospect['name']}: {e}")
         return False
 
 
 def run():
-    """Fire 10 emails on weekday mornings 8-10am Perth."""
-    now = datetime.now(PERTH_TZ)
+    """Fire 10 emails on weekday mornings 8-10am Sydney."""
+    now = datetime.now(SYDNEY_TZ)
     if now.weekday() >= 5 or not (8 <= now.hour < 10):
         return
 
-    logger.info("📧 Outreach Agent: Firing branded emails...")
+    logger.info("📧 Enviromentor Outreach: Firing branded emails...")
     pending = get_pending_prospects()
 
     if not pending:
@@ -294,4 +289,4 @@ def run():
             sent += 1
         time.sleep(3)
 
-    logger.info(f"📧 Done: {sent}/10 sent | {len(pending)-sent} remaining")
+    logger.info(f"📧 Done: {sent}/{min(10,len(pending))} sent | {len(pending)-sent} remaining")

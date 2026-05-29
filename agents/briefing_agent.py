@@ -1,8 +1,8 @@
 """
 Briefing Agent — Daily WhatsApp/SMS briefing for Wander.
 
-Morning (7am Perth): What the agents will do today
-Evening (5pm Perth): What was done, what worked, what needs attention
+Morning (7am Sydney): What the agents will do today
+Evening (5pm Sydney): What was done, what worked, what needs attention
 
 This is Wander's daily connection to the Stackd AI system.
 Think of it as the CEO's daily standup report.
@@ -15,20 +15,20 @@ import pytz
 from tools import claude_ai
 
 logger = logging.getLogger(__name__)
-PERTH_TZ = pytz.timezone("Australia/Perth")   # Sea Breeze / Francisco
+SYDNEY_TZ = pytz.timezone("Australia/Sydney")   # Enviromentor / Francisco
 SYDNEY_TZ = pytz.timezone("Australia/Sydney")  # Stackd AI / Wander
 
-KEY = os.getenv("GHL_SEABREEZE_KEY")
-LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
+KEY = os.getenv("GHL_ENVIROMENTOR_KEY")
+LOC = os.getenv("GHL_ENVIROMENTOR_LOCATION_ID")
 HEADERS = {
     "Authorization": f"Bearer {KEY}",
     "Version": "2021-07-28",
     "Content-Type": "application/json"
 }
 
-WANDER_CONTACT_ID = "g1Hp5UCnMLVganCyNj93"
+NSWNDER_CONTACT_ID = "g1Hp5UCnMLVganCyNj93"
 FRANCISCO_CONTACT_ID = os.getenv("GHL_FRANCISCO_CONTACT_ID")
-PERTH_NOW = lambda: datetime.now(PERTH_TZ)
+PERTH_NOW = lambda: datetime.now(SYDNEY_TZ)
 SYDNEY_NOW = lambda: datetime.now(SYDNEY_TZ)
 
 
@@ -72,7 +72,7 @@ def get_recent_contacts(hours: int = 24) -> list:
                 try:
                     dt = datetime.fromisoformat(
                         added.replace("Z", "+00:00")
-                    ).astimezone(PERTH_TZ)
+                    ).astimezone(SYDNEY_TZ)
                     if (now - dt).total_seconds() < hours * 3600:
                         recent.append(c)
                 except Exception:
@@ -125,7 +125,7 @@ def send_to_wander(message: str):
             headers=HEADERS,
             json={
                 "type": "Email",
-                "contactId": WANDER_CONTACT_ID,
+                "contactId": NSWNDER_CONTACT_ID,
                 "subject": f"Stackd AI Daily Briefing — {PERTH_NOW().strftime('%a %d %b')}",
                 "html": message.replace("\n", "<br>"),
                 "emailFrom": "enviromentor.australia@gmail.com",
@@ -138,9 +138,9 @@ def send_to_wander(message: str):
 
 
 def morning_briefing():
-    """7am Perth — What will happen today."""
+    """7am Sydney — What will happen today."""
     now = SYDNEY_NOW()  # Wander timezone
-    perth_now = PERTH_NOW()  # For Perth-specific checks
+    perth_now = PERTH_NOW()  # For Sydney-specific checks
     day = now.strftime("%A")
     date = now.strftime("%d %B %Y")
     is_weekday = now.weekday() < 5
@@ -190,7 +190,7 @@ def morning_briefing():
     tasks_text = "\n".join(today_tasks)
 
     message = f"""🌿 STACKD AI MORNING BRIEFING
-{day} {date} | 7:00am Perth
+{day} {date} | 7:00am Sydney
 
 Good morning Wander! Here's what your AI team is doing today:
 
@@ -212,7 +212,7 @@ You'll get your evening update at 5pm with what actually happened.
 
 
 def evening_briefing():
-    """5pm Perth — What happened today."""
+    """5pm Sydney — What happened today."""
     now = SYDNEY_NOW()  # Wander timezone
     day = now.strftime("%A")
     date = now.strftime("%d %B %Y")
@@ -229,7 +229,7 @@ def evening_briefing():
     ]
 
     message = f"""🌙 STACKD AI EVENING BRIEFING
-{day} {date} | 5:00pm Perth
+{day} {date} | 5:00pm Sydney
 
 Here's what your AI team did today:
 
@@ -251,7 +251,7 @@ Here's what your AI team did today:
 ✅ Report Agent — {"ran this morning" if now.weekday() == 0 else f"next Monday"}
 
 🎯 TOMORROW:
-{"Outreach + Follow-up agents fire at 8am Perth" if now.weekday() < 4 else "Weekend — core agents monitoring only"}
+{"Outreach + Follow-up agents fire at 8am Sydney" if now.weekday() < 4 else "Weekend — core agents monitoring only"}
 
 — Stackd AI AI System 🌿"""
 
@@ -260,7 +260,7 @@ Here's what your AI team did today:
 
 
 def run():
-    """Run at 7am (morning) or 5pm (evening) Perth time."""
+    """Run at 7am (morning) or 5pm (evening) Sydney time."""
     now = SYDNEY_NOW()  # Wander is in Sydney
     hour = now.hour
 

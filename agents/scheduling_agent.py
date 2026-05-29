@@ -15,10 +15,10 @@ from datetime import datetime, timedelta
 import pytz
 
 logger = logging.getLogger(__name__)
-PERTH_TZ = pytz.timezone("Australia/Perth")
+SYDNEY_TZ = pytz.timezone("Australia/Sydney")
 
-KEY = os.getenv("GHL_SEABREEZE_KEY")
-LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
+KEY = os.getenv("GHL_ENVIROMENTOR_KEY")
+LOC = os.getenv("GHL_ENVIROMENTOR_LOCATION_ID")
 HEADERS = {
     "Authorization": f"Bearer {KEY}",
     "Version": "2021-07-28",
@@ -68,7 +68,7 @@ def mark_reminder_sent(contact_id: str, reminder_type: str):
 def get_upcoming_appointments() -> list:
     """Get appointments in next 25 hours that haven't been reminded yet."""
     try:
-        now = datetime.now(PERTH_TZ)
+        now = datetime.now(SYDNEY_TZ)
         tomorrow = now + timedelta(hours=25)
 
         r = requests.get(
@@ -90,9 +90,9 @@ def get_upcoming_appointments() -> list:
 
 def run():
     """Check appointments and send reminders — ONCE per appointment only."""
-    now = datetime.now(PERTH_TZ)
+    now = datetime.now(SYDNEY_TZ)
 
-    # Only run between 8am and 8pm Perth time
+    # Only run between 8am and 8pm Sydney time
     if not (8 <= now.hour < 20):
         return
 
@@ -129,14 +129,14 @@ def run():
         # Format time
         try:
             appt_dt = datetime.fromtimestamp(
-                int(start_time) / 1000, tz=PERTH_TZ
+                int(start_time) / 1000, tz=SYDNEY_TZ
             )
             time_str = appt_dt.strftime("%A %d %B at %-I:%M%p").replace("AM","am").replace("PM","pm")
         except Exception:
             time_str = "tomorrow"
 
         message = (
-            f"Hi {name}! 🌿 Just a friendly reminder from Sea Breeze Maintenance — "
+            f"Hi {name}! 🌿 Just a friendly reminder from Enviromentor — "
             f"Francisco is visiting {time_str} for your service. "
             f"Need to reschedule? Call Zoe on 0480 891 085. See you soon!"
         )

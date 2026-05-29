@@ -1,5 +1,5 @@
 """
-Social Media Agent — auto-generates weekly content for Sea Breeze.
+Social Media Agent — auto-generates weekly content for Enviromentor.
 
 HOW IT WORKS:
 1. Francisco uploads photos to GHL Media Storage (via his dashboard)
@@ -19,10 +19,10 @@ import pytz
 from tools import claude_ai
 
 logger = logging.getLogger(__name__)
-PERTH_TZ = pytz.timezone("Australia/Perth")
+SYDNEY_TZ = pytz.timezone("Australia/Sydney")
 
-KEY = os.getenv("GHL_SEABREEZE_KEY")
-LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
+KEY = os.getenv("GHL_ENVIROMENTOR_KEY")
+LOC = os.getenv("GHL_ENVIROMENTOR_LOCATION_ID")
 HEADERS = {
     "Authorization": f"Bearer {KEY}",
     "Version": "2021-07-28",
@@ -30,23 +30,23 @@ HEADERS = {
 }
 
 FRANCISCO_CONTACT_ID = os.getenv("GHL_FRANCISCO_CONTACT_ID")
-BUSINESS_NAME = "Sea Breeze Maintenance"
-WEBSITE = "seabreezemaintenance.com.au"
+BUSINESS_NAME = "Enviromentor"
+WEBSITE = "enviromentormaintenance.com.au"
 
 HASHTAG_MAP = {
-    "garden":    "#GardenMaintenance #GroundsMaintenance #PerthMaintenance #PropertySafety",
-    "gutter":    "#GutterCleaning #PreventiveWorks #WaterDamage #HomeMaintenancePerth",
-    "pressure":  "#PressureWashing #PropertyClean #DrivewayClean #PerthCleaning",
+    "garden":    "#GardenMaintenance #GroundsMaintenance #SydneyMaintenance #PropertySafety",
+    "gutter":    "#GutterCleaning #PreventiveWorks #WaterDamage #HomeMaintenanceSydney",
+    "pressure":  "#PressureWashing #PropertyClean #DrivewayClean #SydneyCleaning",
     "antislip":  "#AntiSlip #FallsPrevention #AgedCareSafety #PropertySafety",
-    "before":    "#BeforeAndAfter #Transformation #PropertyMaintenance #Perth",
-    "after":     "#BeforeAndAfter #Transformation #PropertyMaintenance #Perth",
-    "team":      "#SeaBreezeTeam #LocalBusiness #PerthTrades #PropertyMaintenance",
+    "before":    "#BeforeAndAfter #Transformation #PropertyMaintenance #Sydney",
+    "after":     "#BeforeAndAfter #Transformation #PropertyMaintenance #Sydney",
+    "team":      "#SeaBreezeTeam #LocalBusiness #SydneyTrades #PropertyMaintenance",
     "aged":      "#AgedCare #AgedCareSafety #PropertyMaintenance #WesternAustralia",
-    "strata":    "#StrataManagement #BodyCorporate #PropertyManagement #Perth",
-    "default":   "#SeaBreezeMaintenance #PropertySafety #WesternAustralia #Perth",
+    "strata":    "#StrataManagement #BodyCorporate #PropertyManagement #Sydney",
+    "default":   "#SeaBreezeMaintenance #PropertySafety #WesternAustralia #Sydney",
 }
 
-BASE_HASHTAGS = "#SeaBreezeMaintenance #PerthMaintenance #SouthWestWA"
+BASE_HASHTAGS = "#SeaBreezeMaintenance #SydneyMaintenance #SouthWestNSW"
 
 # LinkedIn Company Page
 LINKEDIN_COMPANY_ID = "116744068"
@@ -97,12 +97,12 @@ def generate_caption(filename: str, url: str) -> str:
     # Clean filename for context
     clean_name = filename.replace("-", " ").replace("_", " ").replace(".jpg", "").replace(".png", "").replace(".jpeg", "")
 
-    prompt = f"""Write a Facebook and Instagram post for Sea Breeze Maintenance.
+    prompt = f"""Write a Facebook and Instagram post for Enviromentor.
 
 The photo shows: {clean_name}
 
-Sea Breeze Maintenance is a professional property safety and maintenance team 
-serving Perth metro and South West WA (Dunsborough, Busselton, Margaret River).
+Enviromentor is a professional property safety and maintenance team 
+serving Sydney metro and Sydney metro (Dunsborough, Busselton, Margaret River).
 
 Services: garden & grounds maintenance, preventive gutter works, 
 pressure washing, anti-slip surface installation.
@@ -120,8 +120,8 @@ Requirements:
 Write ONLY the caption text, nothing else."""
 
     return claude_ai.think(
-        system_prompt="""You write engaging social media captions for Sea Breeze Maintenance, 
-a property safety team in Perth and South West WA. 
+        system_prompt="""You write engaging social media captions for Enviromentor, 
+a property safety team in Sydney and Sydney metro. 
 Warm, professional, safety-focused, community-minded tone.
 Never use corporate jargon. Write like a trusted local business.""",
         user_message=prompt,
@@ -185,7 +185,7 @@ def save_caption_as_note(caption: str, filename: str, scheduled_for: str):
 
 def run():
     """Main social agent — runs every Monday morning."""
-    now = datetime.now(PERTH_TZ)
+    now = datetime.now(SYDNEY_TZ)
 
     # Only run on Mondays
     if now.weekday() != 0:

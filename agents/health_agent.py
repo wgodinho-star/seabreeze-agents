@@ -15,11 +15,11 @@ from datetime import datetime, timedelta
 import pytz
 
 logger = logging.getLogger(__name__)
-PERTH_TZ = pytz.timezone("Australia/Perth")
+SYDNEY_TZ = pytz.timezone("Australia/Sydney")
 SYDNEY_TZ = pytz.timezone("Australia/Sydney")
 
-KEY = os.getenv("GHL_SEABREEZE_KEY")
-LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
+KEY = os.getenv("GHL_ENVIROMENTOR_KEY")
+LOC = os.getenv("GHL_ENVIROMENTOR_LOCATION_ID")
 HEADERS = {
     "Authorization": f"Bearer {KEY}",
     "Version": "2021-07-28",
@@ -35,8 +35,8 @@ FRANCISCO_PHONE = os.getenv("CLIENT_PHONE", "+61404590230")
 def send_alert(message: str):
     """Send alert via GHL email — FREE, no SMS cost."""
     try:
-        KEY = os.getenv("GHL_SEABREEZE_KEY")
-        LOC = os.getenv("GHL_SEABREEZE_LOCATION_ID")
+        KEY = os.getenv("GHL_ENVIROMENTOR_KEY")
+        LOC = os.getenv("GHL_ENVIROMENTOR_LOCATION_ID")
         HEADERS = {
             "Authorization": f"Bearer {KEY}",
             "Version": "2021-07-28",
@@ -50,7 +50,7 @@ def send_alert(message: str):
 <table width="600" style="background:#fff;border-radius:8px;overflow:hidden;margin:auto;">
   <tr><td style="background:#A32D2D;padding:20px 30px;">
     <span style="color:#fff;font-size:18px;font-weight:bold;">🚨 Stackd AI System Alert</span><br>
-    <span style="color:#ffaaaa;font-size:12px;">Sea Breeze Maintenance — {now_str}</span>
+    <span style="color:#ffaaaa;font-size:12px;">Enviromentor — {now_str}</span>
   </td></tr>
   <tr><td style="padding:24px 30px;">
     <p style="color:#A32D2D;font-weight:bold;font-size:15px;">Critical issue detected:</p>
@@ -63,7 +63,7 @@ def send_alert(message: str):
     </p>
   </td></tr>
   <tr><td style="background:#1a1a2e;padding:12px 30px;text-align:center;">
-    <span style="color:#9FE1CB;font-size:11px;">Stackd AI — Sea Breeze Maintenance System Monitor</span>
+    <span style="color:#9FE1CB;font-size:11px;">Stackd AI — Enviromentor System Monitor</span>
   </td></tr>
 </table>
 </body></html>"""
@@ -79,7 +79,7 @@ def send_alert(message: str):
                 "subject": f"🚨 Stackd AI Alert — {now_str}",
                 "html": html,
                 "emailTo": "wgodinho@gmail.com",
-                "emailFrom": "hello@seabreezemaintenance.com.au",
+                "emailFrom": "zoe@enviromentor.com",
             }
         )
         logger.warning(f"🚨 Alert emailed to Wander: {message[:80]}")
@@ -128,12 +128,12 @@ def check_email_sending() -> dict:
         # LC Email may queue without creating GHL conversation records
         if sent_count > 20 and len(convos) == 0:
             issues.append(
-                f"WARNING: {sent_count} outreach tags but 0 GHL conversations — "
+                f"NSWRNING: {sent_count} outreach tags but 0 GHL conversations — "
                 f"verify emails are delivering via LC Email settings"
             )
 
         return {
-            "status": "WARN" if issues else "OK",
+            "status": "NSWRN" if issues else "OK",
             "sent_contacts": sent_count,
             "conversations": len(convos),
             "issues": issues
@@ -180,7 +180,7 @@ def check_contacts_quality() -> dict:
             )
 
         return {
-            "status": "WARN" if issues else "OK",
+            "status": "NSWRN" if issues else "OK",
             "total": len(contacts),
             "issues": issues
         }
@@ -225,7 +225,7 @@ def check_runaway_sms() -> dict:
         messages = json.loads(response.read()).get("messages", [])
 
         # Count messages per recipient in last hour
-        now = datetime.now(PERTH_TZ)
+        now = datetime.now(SYDNEY_TZ)
         counts = {}
         hourly_cost = 0
         for m in messages:
@@ -233,7 +233,7 @@ def check_runaway_sms() -> dict:
                 sent_at = datetime.strptime(
                     m.get("date_sent", ""),
                     "%a, %d %b %Y %H:%M:%S %z"
-                ).astimezone(PERTH_TZ)
+                ).astimezone(SYDNEY_TZ)
                 if (now - sent_at).total_seconds() < 3600:
                     to = m.get("to", "unknown")
                     counts[to] = counts.get(to, 0) + 1
@@ -244,7 +244,7 @@ def check_runaway_sms() -> dict:
         for number, count in counts.items():
             if count > 5:
                 issues.append(
-                    f"🚨 RUNAWAY SMS: {count} messages to {number} in last hour! "
+                    f"🚨 RUNANSWY SMS: {count} messages to {number} in last hour! "
                     f"Cost: ${hourly_cost:.2f}. Possible loop — check scheduling agent!"
                 )
 
@@ -280,11 +280,11 @@ def run():
         if status in ["FAIL", "ERROR"]:
             for issue in issues:
                 critical.append(f"{name}: {issue}")
-        elif status == "WARN":
+        elif status == "NSWRN":
             for issue in issues:
                 warnings.append(f"{name}: {issue}")
 
-        icon = "✅" if status == "OK" else "⚠️" if status == "WARN" else "❌"
+        icon = "✅" if status == "OK" else "⚠️" if status == "NSWRN" else "❌"
         logger.info(f"  {icon} {name}: {issues[0][:60] if issues else 'All good'}")
 
     # Only alert on CRITICAL — not warnings
